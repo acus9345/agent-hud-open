@@ -1,6 +1,10 @@
 import { Button } from "@agent-hud/ui/components/button";
 import { Card } from "@agent-hud/ui/components/card";
-import type { Session, Snapshot } from "@agent-hud/protocol";
+import type {
+  AgentMessageRecord,
+  Session,
+  Snapshot,
+} from "@agent-hud/protocol";
 import type { useSessionDetail } from "../lib/use-sessions";
 import { InlineDetail } from "./SessionDetailView";
 import { DetailPlaceholder } from "./SessionPlaceholders";
@@ -26,6 +30,8 @@ export function SessionDetailBody({
   onSession,
   pickedSession = null,
   turnBeside = false,
+  agentMessages,
+  onJumpSession,
 }: {
   session: Session | undefined;
   state: DetailState;
@@ -38,6 +44,8 @@ export function SessionDetailBody({
   onSession: (id: string) => void;
   pickedSession?: string | null;
   turnBeside?: boolean;
+  agentMessages?: readonly AgentMessageRecord[];
+  onJumpSession?: (id: string) => void;
 }) {
   const t = useT();
   return (
@@ -55,6 +63,8 @@ export function SessionDetailBody({
           onSession={onSession}
           pickedSession={pickedSession}
           turnBeside={turnBeside}
+          agentMessages={agentMessages}
+          onJumpSession={onJumpSession}
           loadMessages={() => void state.loadMessages()}
           loadingMessages={state.loadingMessages}
           reveal={() => {

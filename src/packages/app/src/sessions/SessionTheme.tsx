@@ -26,7 +26,7 @@ export {
   truncate as clipped,
 } from "../statistics/StatsTheme";
 
-export type Arrangement = "day" | "active";
+export type Arrangement = "day" | "active" | "messages";
 export type Entry = SessionDetail["turns"][number];
 
 /** The Statistics window's colours, and the Sessions page's own. */

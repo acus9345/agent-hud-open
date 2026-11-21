@@ -24,6 +24,7 @@ pub(crate) async fn native_request(
     let stopped = Arc::clone(&service.stopped);
     let extension = service.extension.clone();
     let share = service.share.clone();
+    let messages = Arc::clone(&service.messages);
     let collection = Arc::clone(&service.collection);
     let wake = Arc::clone(&service.wake);
     tauri::async_runtime::spawn_blocking(move || {
@@ -66,6 +67,14 @@ pub(crate) async fn native_request(
                     params["method"].as_str().ok_or("Extension method is required")?,
                     params.get("params").cloned().unwrap_or(Value::Null),
                 );
+        }
+        if method == "agent_messages" {
+            let snapshot = latest_snapshot
+                .read()
+                .unwrap_or_else(PoisonError::into_inner)
+                .clone();
+            let snap = snapshot.as_deref().unwrap_or(&Value::Null);
+            return Ok(messages.history(snap));
         }
         let mut params=params;
         // The demo never reaches outside its own folder: no login item, no

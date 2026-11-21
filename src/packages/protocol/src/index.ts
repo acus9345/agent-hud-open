@@ -8,3 +8,4 @@ export type * from "./prices-relays.ts";
 export type * from "./requests.ts";
 export type * from "./settings.ts";
 export type * from "./inspect.ts";
+export type * from "./agent-messages.ts";

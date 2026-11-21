@@ -19,6 +19,7 @@ pub(crate) struct Service {
     pub(crate) hook_actions: Arc<Mutex<()>>,
     pub(crate) extension: Option<Arc<dyn extension::ProductExtension>>,
     pub(crate) share: Option<Arc<agent_hud_share::PhoneShare>>,
+    pub(crate) messages: Arc<messages::AgentMessages>,
     /// Taken before `backend` for a collection pass, so an account reading in
     /// progress delays only that pass, never a UI request.
     pub(crate) collection: agent_hud_runtime::CollectionGate,
@@ -124,7 +125,7 @@ impl Service {
         backend
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .messages = Some(messages);
+            .messages = Some(Arc::clone(&messages));
         // Before the first collection pass, so a Claude desktop question the
         // app can answer never shows first as one it cannot: the product's own
         // way into sessions, else Agent HUD's Claude Code plugin.
@@ -178,6 +179,7 @@ impl Service {
             hook_actions: Arc::new(Mutex::new(())),
             extension,
             share,
+            messages,
             collection,
         })
     }

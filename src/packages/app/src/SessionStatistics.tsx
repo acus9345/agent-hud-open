@@ -8,11 +8,18 @@ import {
 import { systemTimeZone } from "@agent-hud/ui/format";
 import { useClockNow, useFormat, useT } from "@agent-hud/ui/format-context";
 import { useSessionDetail, useSessions } from "./lib/use-sessions";
+import { useAgentMessages } from "./lib/use-agent-messages";
+import {
+  filterAgentMessages,
+  messageClientSources,
+  messagesForSession,
+} from "./lib/agent-messages";
 import type {
   NativeMethod,
   SessionsQuery,
   Snapshot,
 } from "@agent-hud/protocol";
+import { AgentMessagesList } from "./sessions/AgentMessagesList";
 import { SessionAside } from "./sessions/SessionAside";
 import { NoSessionPicked, SessionBackBar } from "./sessions/SessionBackBar";
 import { SessionColumns } from "./sessions/SessionColumns";
@@ -84,6 +91,19 @@ export default function SessionStatistics({
   const revision =
     snapshot.sessionsRevision ?? (snapshot.mode === "demo" ? now : 0);
   const list = useSessions(listQuery, revision, active, action);
+  const agentMessages = useAgentMessages(active, action);
+  const messageSources = useMemo(
+    () => messageClientSources(agentMessages.messages),
+    [agentMessages.messages],
+  );
+  const filteredMessages = useMemo(
+    () => filterAgentMessages(agentMessages.messages, source, query, ALL),
+    [agentMessages.messages, source, query],
+  );
+  const sessionAgentMessages = useMemo(
+    () => messagesForSession(agentMessages.messages, selectedId),
+    [agentMessages.messages, selectedId],
+  );
   const filtered = list.page?.items ?? [];
   const observed =
     snapshot.sessions.find((session) => session.id === selectedId) ??
@@ -147,30 +167,48 @@ export default function SessionStatistics({
         query={query}
         onQuery={setQuery}
         page={list.page}
+        messageCount={filteredMessages.length}
+        messageSources={messageSources}
         theme={theme}
         stickyTop={split ? 0 : 44}
       />
-      <SessionList
-        list={list}
-        arrangement={arrangement}
-        filtering={Boolean(query || project !== ALL || source !== ALL)}
-        now={now}
-        providers={snapshot.providers}
-        active={active}
-        flipped={flipped}
-        onFlip={(day) =>
-          setFlipped((previous) => {
-            const next = new Set(previous);
-            if (next.has(day)) next.delete(day);
-            else next.add(day);
-            return next;
-          })
-        }
-        onSelect={(id) => show(id)}
-        theme={theme}
-        selectedId={split ? selectedId : null}
-        narrow={listRows > 0 && listRows < 500}
-      />
+      {arrangement === "messages" ? (
+        <AgentMessagesList
+          messages={agentMessages.messages}
+          loading={agentMessages.loading}
+          error={agentMessages.error}
+          onRetry={agentMessages.retry}
+          enabled={Boolean(snapshot.settings.agentMessages)}
+          source={source}
+          query={query}
+          now={now}
+          theme={theme}
+          selectedId={split ? selectedId : null}
+          onSelect={(id) => show(id)}
+        />
+      ) : (
+        <SessionList
+          list={list}
+          arrangement={arrangement}
+          filtering={Boolean(query || project !== ALL || source !== ALL)}
+          now={now}
+          providers={snapshot.providers}
+          active={active}
+          flipped={flipped}
+          onFlip={(day) =>
+            setFlipped((previous) => {
+              const next = new Set(previous);
+              if (next.has(day)) next.delete(day);
+              else next.add(day);
+              return next;
+            })
+          }
+          onSelect={(id) => show(id)}
+          theme={theme}
+          selectedId={split ? selectedId : null}
+          narrow={listRows > 0 && listRows < 500}
+        />
+      )}
     </>
   );
   // The session, under a way back: to the parent session, or (where the
@@ -199,6 +237,8 @@ export default function SessionStatistics({
         onSession={(id) => setPick({ kind: "session", id })}
         pickedSession={pick?.kind === "session" ? pick.id : null}
         turnBeside
+        agentMessages={sessionAgentMessages}
+        onJumpSession={(id) => show(id)}
       />
     </>
   ) : (

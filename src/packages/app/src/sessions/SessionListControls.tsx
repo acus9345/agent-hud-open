@@ -72,6 +72,8 @@ export function SessionListControls({
   query,
   onQuery,
   page,
+  messageCount,
+  messageSources,
   theme,
   stickyTop = 44,
 }: {
@@ -84,6 +86,8 @@ export function SessionListControls({
   query: string;
   onQuery: (query: string) => void;
   page: SessionsResponse | null;
+  messageCount?: number;
+  messageSources?: string[];
   theme: Theme;
   /** Where the controls stick: under the window's toolbar, or at the top
    * of the list's own column. */
@@ -91,7 +95,8 @@ export function SessionListControls({
 }) {
   const t = useT();
   const { language } = useFormat();
-  const sources = page?.sources ?? [];
+  const messagesView = arrangement === "messages";
+  const sources = messagesView ? (messageSources ?? []) : (page?.sources ?? []);
   const projects = (page?.projects ?? []).filter(
     (path): path is string => path !== null,
   );
@@ -121,6 +126,7 @@ export function SessionListControls({
           choices={[
             { value: "day", label: t("Day") },
             { value: "active", label: t("Active") },
+            { value: "messages", label: t("Messages") },
           ]}
           theme={theme}
         />
@@ -133,9 +139,11 @@ export function SessionListControls({
             ...numeric,
           }}
         >
-          {arrangement === "active"
-            ? t("{{total}} in 24 hours", { total: page?.total ?? 0 })
-            : t("{{total}} in 7 days", { total: page?.total ?? 0 })}
+          {messagesView
+            ? t("{{total}} messages", { total: messageCount ?? 0 })
+            : arrangement === "active"
+              ? t("{{total}} in 24 hours", { total: page?.total ?? 0 })
+              : t("{{total}} in 7 days", { total: page?.total ?? 0 })}
         </span>
         <SourceSelect
           label={t("Session source")}
@@ -153,23 +161,25 @@ export function SessionListControls({
         </SourceSelect>
       </div>
       <div style={{ ...row, gap: 12, height: 26 }}>
-        <SourceSelect
-          label={t("Project path")}
-          value={project}
-          onChange={onProject}
-          width={260}
-          theme={theme}
-        >
-          <SelectItem value={ALL}>{t("All projects")}</SelectItem>
-          {projects.map((path) => (
-            <SelectItem key={path} value={path}>
-              {page?.projectLabels?.[path] ?? projectName(path, language)}
-            </SelectItem>
-          ))}
-          {page?.projects.includes(null) && (
-            <SelectItem value="__unassigned__">{t("Unassigned")}</SelectItem>
-          )}
-        </SourceSelect>
+        {!messagesView && (
+          <SourceSelect
+            label={t("Project path")}
+            value={project}
+            onChange={onProject}
+            width={260}
+            theme={theme}
+          >
+            <SelectItem value={ALL}>{t("All projects")}</SelectItem>
+            {projects.map((path) => (
+              <SelectItem key={path} value={path}>
+                {page?.projectLabels?.[path] ?? projectName(path, language)}
+              </SelectItem>
+            ))}
+            {page?.projects.includes(null) && (
+              <SelectItem value="__unassigned__">{t("Unassigned")}</SelectItem>
+            )}
+          </SourceSelect>
+        )}
         <div
           style={{
             ...row,
@@ -186,7 +196,11 @@ export function SessionListControls({
           <Input
             value={query}
             onChange={(event) => onQuery(event.target.value)}
-            placeholder={t("Search sessions or paths")}
+            placeholder={
+              messagesView
+                ? t("Search messages or sessions")
+                : t("Search sessions or paths")
+            }
             aria-label={t("Search sessions")}
             style={{
               border: 0,

@@ -158,6 +158,7 @@ export type NativeMethod =
   | "set_provider"
   | "answer_request"
   | "session_detail"
+  | "agent_messages"
   | "open_session"
   | "open_client"
   | "open_link"

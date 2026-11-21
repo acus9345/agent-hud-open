@@ -1,9 +1,15 @@
 import { useState, type CSSProperties } from "react";
 import { Card } from "@agent-hud/ui/components/card";
 import { sessionClient } from "../lib/sessions";
-import type { Session, SessionDetail, Snapshot } from "@agent-hud/protocol";
+import type {
+  AgentMessageRecord,
+  Session,
+  SessionDetail,
+  Snapshot,
+} from "@agent-hud/protocol";
 import type { Measure } from "./TurnBarsChart";
 import { KindsCard, ModelsCard } from "./BreakdownCards";
+import { SessionAgentMessagesCard } from "./SessionAgentMessagesCard";
 import { DetailFigures } from "./SessionDetailFigures";
 import { DetailHeader } from "./SessionDetailHeader";
 import { SessionTranscript } from "./SessionTranscript";
@@ -37,6 +43,8 @@ export function InlineDetail({
   onSession,
   pickedSession = null,
   turnBeside = false,
+  agentMessages,
+  onJumpSession,
   reveal,
   loadMessages,
   loadingMessages,
@@ -53,6 +61,8 @@ export function InlineDetail({
   /** The sub-agent open in the column beside. */
   pickedSession?: string | null;
   turnBeside?: boolean;
+  agentMessages?: readonly AgentMessageRecord[];
+  onJumpSession?: (id: string) => void;
   reveal: () => void;
   loadMessages: () => void;
   loadingMessages: boolean;
@@ -186,6 +196,15 @@ export function InlineDetail({
                 {lastMessage}
               </div>
             </Card>
+          )}
+          {agentMessages && agentMessages.length > 0 && onJumpSession && (
+            <SessionAgentMessagesCard
+              sessionId={session.id}
+              messages={agentMessages}
+              now={now}
+              theme={theme}
+              onSelectSession={onJumpSession}
+            />
           )}
           <SessionTranscript
             detail={detail}

@@ -1,5 +1,5 @@
-//! What was sent, kept a week: who to whom, the chain and pass, where the
-//! answer is. Never the words: only their fingerprint.
+//! What was sent, kept a week: who to whom, the chain and pass, the words
+//! that were sent, and where the answer is.
 use agent_hud_platform::delivery::{self, PromptForm};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -76,6 +76,9 @@ pub struct Message {
     /// it, and a call that comes twice sends once.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub call: Option<String>,
+    /// The message body text that was sent, kept for the week-long journal view.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub text: Option<String>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -108,6 +111,9 @@ impl Journal {
     pub fn add(&mut self, message: Message) {
         self.messages.push(message);
         self.save();
+    }
+    pub fn all(&self) -> &[Message] {
+        &self.messages
     }
     pub fn find(&self, id: &str) -> Option<&Message> {
         self.messages.iter().find(|message| message.id == id)
