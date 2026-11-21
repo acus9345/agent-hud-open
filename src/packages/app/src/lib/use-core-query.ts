@@ -53,18 +53,44 @@ export function useCoreQuery<T>(
     null,
   );
   const retries = useRef<{ sig: string; count: number }>({ sig: "", count: 0 });
+  const mounted = useRef(false);
+  const roundTimer = useRef(0);
+  const retryTimer = useRef(0);
   useEffect(() => {
-    if (!active) return;
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      window.clearTimeout(roundTimer.current);
+      window.clearTimeout(retryTimer.current);
+      roundTimer.current = 0;
+      retryTimer.current = 0;
+    };
+  }, []);
+  useEffect(
+    () => () => {
+      window.clearTimeout(roundTimer.current);
+      window.clearTimeout(retryTimer.current);
+      roundTimer.current = 0;
+      retryTimer.current = 0;
+    },
+    [method, key, active],
+  );
+  useEffect(() => {
+    if (!active) {
+      setFetching(false);
+      return;
+    }
     if (out.current?.method === method && out.current.key === key) return;
-    let disposed = false;
-    let roundTimer = 0;
-    let retryTimer = 0;
+    window.clearTimeout(roundTimer.current);
+    window.clearTimeout(retryTimer.current);
+    roundTimer.current = 0;
+    retryTimer.current = 0;
     const sig = `${method}|${key}|${String(refresh ?? "")}`;
     if (retries.current.sig !== sig) retries.current = { sig, count: 0 };
     const request = { method, key, refresh, asked: wanted.current.asked };
     out.current = request;
     const same = () =>
-      !disposed &&
+      mounted.current &&
       wanted.current.method === request.method &&
       wanted.current.key === request.key;
     const started = Date.now();
@@ -87,8 +113,9 @@ export function useCoreQuery<T>(
         ) {
           const delay = RETRY_DELAYS_MS[retries.current.count++];
           retrying = true;
-          retryTimer = window.setTimeout(() => {
-            if (!disposed) setRound((value) => value + 1);
+          retryTimer.current = window.setTimeout(() => {
+            retryTimer.current = 0;
+            if (mounted.current) setRound((value) => value + 1);
           }, delay);
           return;
         }
@@ -99,7 +126,12 @@ export function useCoreQuery<T>(
       })
       .finally(() => {
         if (out.current === request) out.current = null;
-        if (!same()) return;
+        if (!same()) {
+          if (mounted.current && !wanted.current.active && !retrying) {
+            setFetching(false);
+          }
+          return;
+        }
         // The next round leaves at least 1.5 s after this one did, so a
         // ledger read in a hurry is not asked again on every pass.
         if (
@@ -107,9 +139,10 @@ export function useCoreQuery<T>(
           wanted.current.active &&
           wanted.current.refresh !== request.refresh
         ) {
-          roundTimer = window.setTimeout(
+          roundTimer.current = window.setTimeout(
             () => {
-              if (!disposed) setRound((value) => value + 1);
+              roundTimer.current = 0;
+              if (mounted.current) setRound((value) => value + 1);
             },
             Math.max(0, SPACING_MS - (Date.now() - started)),
           );
@@ -117,11 +150,6 @@ export function useCoreQuery<T>(
           setFetching(false);
         }
       });
-    return () => {
-      disposed = true;
-      window.clearTimeout(roundTimer);
-      window.clearTimeout(retryTimer);
-    };
   }, [method, key, active, refresh, round]);
   const error = failure?.key === key ? failure.message : null;
   return {

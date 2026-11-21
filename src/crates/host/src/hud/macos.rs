@@ -96,6 +96,18 @@ pub(super) fn set_ignore_cursor(
         .map_err(|error| error.to_string())
 }
 
+pub(super) fn sync_wheel_capture(
+    _app: &tauri::AppHandle,
+    _window: &tauri::WebviewWindow,
+    _screen_id: &str,
+    _active: bool,
+    _regions: &[super::InteractiveRegion],
+    _geometry: Option<&super::HudGeometry>,
+) {
+}
+
+pub(super) fn shutdown_wheel_capture() {}
+
 #[link(name = "CoreGraphics", kind = "framework")]
 unsafe extern "C" {
     fn CGDisplayCreateUUIDFromDisplayID(display: u32) -> Option<NonNull<CFUUID>>;

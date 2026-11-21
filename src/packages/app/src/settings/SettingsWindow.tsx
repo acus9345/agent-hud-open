@@ -36,11 +36,7 @@ import { GuideLayer } from "../guide/GuideLayer";
 import type { ProductGuide } from "../guide/plan";
 import { openSettingsSteps } from "../guide/steps";
 import type { SettingsPaneProps } from "./SettingsPrimitives";
-import {
-  toggleWindowMaximize,
-  useCustomFrame,
-  WindowControls,
-} from "../WindowControls";
+import { useCustomFrame, WindowControls } from "../WindowControls";
 
 // A resting HUD does not need the settings panes.
 const SettingsPane = lazy(() => import("../SettingsPanes"));
@@ -155,11 +151,7 @@ export function SettingsWindow({
           data-custom-frame={customFrame ? "true" : undefined}
         >
           <aside className="apple-sidebar">
-            <div
-              className="sidebar-drag-space"
-              data-tauri-drag-region
-              onDoubleClick={customFrame ? toggleWindowMaximize : undefined}
-            />
+            <div className="sidebar-drag-space" data-tauri-drag-region />
             <nav aria-label={t("Settings")}>
               {pageGroups.map((group) => {
                 const items = allPages.filter((item) => item.group === group);
@@ -221,11 +213,7 @@ export function SettingsWindow({
           </aside>
           <main className="apple-content">
             {customFrame && (
-              <div
-                className="settings-window-bar"
-                data-tauri-drag-region
-                onDoubleClick={toggleWindowMaximize}
-              >
+              <div className="settings-window-bar" data-tauri-drag-region>
                 <span className="settings-window-drag" data-tauri-drag-region />
                 <WindowControls />
               </div>

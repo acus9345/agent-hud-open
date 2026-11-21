@@ -19,6 +19,7 @@ import type {
   NativeHUDMonitor,
 } from "./lib/use-hud-geometry";
 import { useHUDPointer } from "./lib/use-hud-pointer";
+import { useHUDWheel } from "./lib/use-hud-wheel";
 import { HUDCanvas } from "./HUDCanvas";
 import { useHUDTextFocus } from "./lib/use-hud-text-focus";
 import type { ProductGuide } from "./guide/plan";
@@ -59,6 +60,7 @@ export default function NativeHUDSurface({
     screenId,
     config.botLogos || monitors.length > 1,
   );
+  useHUDWheel(screenId);
   const textFocused = useHUDTextFocus(
     screenId,
     snapshot.approvals,

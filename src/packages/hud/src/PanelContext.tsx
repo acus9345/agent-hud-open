@@ -131,17 +131,21 @@ export function usePanelQuery<T>(
     listen,
     () => latest.get(base) as T | undefined,
   );
+  const servicesRef = useRef(services);
+  servicesRef.current = services;
+  const hasServices = Boolean(services);
   const asked = useRef(0);
   const retried = useRef("");
   const [retryTick, setRetryTick] = useState(0);
   useEffect(() => {
-    if (!enabled || !services) return;
+    const currentServices = servicesRef.current;
+    if (!enabled || !currentServices) return;
     let disposed = false;
     let timer = 0;
     const order = ++asked.current;
     let promise = cache.get(key);
     if (!promise) {
-      promise = services.query(
+      promise = currentServices.query(
         method,
         params as unknown as Record<string, unknown>,
       );
@@ -185,7 +189,7 @@ export function usePanelQuery<T>(
       disposed = true;
       window.clearTimeout(timer);
     };
-  }, [key, base, enabled, services, retryTick]);
+  }, [key, base, enabled, hasServices, retryTick]);
   return {
     ...shownAnswer(answer, key, base, last),
     available: Boolean(services),

@@ -79,6 +79,7 @@ pub(super) fn configure(
         }
         if let Some(window) = app.get_webview_window(&owner.label) {
             release_text_focus(&window, state)?;
+            host::sync_wheel_capture(app, &window, &owner.screen_id, false, &[], None);
             apply_ignore_cursor(&window, state, true, true)?;
             window.hide().map_err(|error| error.to_string())?;
         }

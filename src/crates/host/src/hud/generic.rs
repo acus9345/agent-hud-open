@@ -122,3 +122,17 @@ pub(super) fn global_pointer(app: &tauri::AppHandle) -> Result<Point, String> {
         y: position.y,
     })
 }
+
+#[allow(dead_code)]
+pub(super) fn sync_wheel_capture(
+    _app: &tauri::AppHandle,
+    _window: &tauri::WebviewWindow,
+    _screen_id: &str,
+    _active: bool,
+    _regions: &[super::InteractiveRegion],
+    _geometry: Option<&super::HudGeometry>,
+) {
+}
+
+#[allow(dead_code)]
+pub(super) fn shutdown_wheel_capture() {}

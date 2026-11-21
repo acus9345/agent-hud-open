@@ -1,4 +1,5 @@
-import { ClockProvider, FormatProvider } from "@agent-hud/ui/format-context";
+import { FormatProvider } from "@agent-hud/ui/format-context";
+import { HUDClockProvider } from "./HUDClockProvider";
 import { lazy, Suspense, useMemo, type ReactNode } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
@@ -76,7 +77,6 @@ function AppContent({
   const windowActive = useWindowActivity();
   const {
     snapshot: collectedSnapshot,
-    clock,
     loading,
     error,
     demo,
@@ -226,9 +226,7 @@ function AppContent({
       setting={snapshotLanguage(snapshot)}
       quotaDisplay={snapshot?.settings.quotaDisplay}
     >
-      <ClockProvider now={clock ? Date.parse(clock) : undefined}>
-        {node}
-      </ClockProvider>
+      <HUDClockProvider active={windowActive}>{node}</HUDClockProvider>
     </FormatProvider>
   );
   if (surface)

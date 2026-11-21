@@ -92,9 +92,16 @@ pub(crate) fn build(
     Ok(window)
 }
 
+pub(crate) fn resolved_light(app: &tauri::AppHandle, window: &WebviewWindow) -> bool {
+    let system_light = window.theme().ok() == Some(tauri::Theme::Light);
+    preference(app).light(system_light)
+}
+
 fn apply(window: &WebviewWindow, preference: Preference, system_light: bool) -> Result<(), String> {
+    let light = preference.light(system_light);
     let (r, g, b, a) = preference.background(system_light);
     let color = tauri::window::Color(r, g, b, a);
+    crate::shell::set_window_border(window, light);
     window
         .set_background_color(Some(color))
         .map_err(|e| e.to_string())

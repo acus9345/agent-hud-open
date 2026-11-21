@@ -261,6 +261,7 @@ pub fn run_with_options(
                 api.prevent_exit();
             }
             if matches!(event, tauri::RunEvent::Exit) {
+                shell::shutdown(app);
                 coordinator::stop(app);
                 screens::shutdown(app);
                 inspect::shutdown(app);

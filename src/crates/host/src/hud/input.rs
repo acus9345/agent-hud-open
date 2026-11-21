@@ -43,7 +43,15 @@ pub async fn hud_report_regions(
         };
         let ignored = state.drag.is_none() && !pointer.inside;
         // A failed position read must never leave a transparent canvas blocking the user's apps.
-        apply_ignore_cursor(&window, &mut state, ignored, false)?;
+        apply_ignore_cursor(&window, &mut state, ignored, true)?;
+        host::sync_wheel_capture(
+            &app,
+            &window,
+            &shared.screen_id,
+            !ignored && state.drag.is_none(),
+            state.regions.as_deref().unwrap_or_default(),
+            state.geometry.as_ref(),
+        );
         // Apply input acceptance before notifying React: its expanded controls must be
         // able to receive clicks even if the ignore->accept switch causes no DOM enter.
         publish_pointer(&app, &shared, &mut state, pointer.clone(), true);

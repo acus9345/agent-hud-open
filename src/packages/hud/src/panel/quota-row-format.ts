@@ -24,11 +24,17 @@ const MONTHS = [
 
 const two = (value: number) => String(value).padStart(2, "0");
 
-/** Shortens verbose provider quota suffixes for crisp bar-row display. */
+/** Shortens verbose provider quota suffixes and strips repeated group prefixes. */
 export function quotaDisplayName(name: string): string {
-  return name
-    .replace(/\bWeekly Limit Remaining\b/i, "Weekly limit")
-    .replace(/\bFive Hour Limit Remaining\b/i, "5-hour limit")
+  const parts = name.split(" · ");
+  const deduped =
+    parts.length === 2 &&
+    parts[1].toLowerCase().startsWith(`${parts[0].toLowerCase()} `)
+      ? `${parts[0]} · ${parts[1].slice(parts[0].length + 1)}`
+      : name;
+  return deduped
+    .replace(/\bWeekly Limit(?:\s+Remaining)?\b/i, "Weekly limit")
+    .replace(/\bFive Hour Limit(?:\s+Remaining)?\b/i, "5-hour limit")
     .replace(/\bLimit Remaining\b/i, "limit");
 }
 
@@ -67,7 +73,7 @@ export function formatBarReset(
   settings: FormatSettings,
 ): string {
   const resetAt = row.resetAt ? Date.parse(row.resetAt) : NaN;
-  if (!Number.isFinite(resetAt)) return "—";
+  if (!Number.isFinite(resetAt)) return "";
   if (resetAt <= now) return translate(settings.language, "Pending update");
 
   const { timeZone } = settings.calendar;

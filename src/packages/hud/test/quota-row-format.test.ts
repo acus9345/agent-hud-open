@@ -45,6 +45,11 @@ test("quotaDisplayName shortens verbose provider quota suffixes", () => {
     quotaDisplayName("Gemini Models · Five Hour Limit Remaining"),
     "Gemini Models · 5-hour limit",
   );
+  assert.equal(
+    quotaDisplayName("Gemini 4 Argon · Gemini 4 Argon Weekly Limit"),
+    "Gemini 4 Argon · Weekly limit",
+  );
+  assert.equal(quotaDisplayName("Weekly Limit"), "Weekly limit");
   assert.equal(quotaDisplayName("Weekly Limit Remaining"), "Weekly limit");
   assert.equal(quotaDisplayName("Session"), "Session");
 });
@@ -98,7 +103,7 @@ test("formatBarReset formats clock reset times cleanly across ranges and locales
     formatBarReset({ resetAt: "2026-10-21T11:00:00Z" }, nowNoon, zh),
     "等待更新",
   );
-  assert.equal(formatBarReset({ resetAt: null }, nowNoon, en), "—");
+  assert.equal(formatBarReset({ resetAt: null }, nowNoon, en), "");
 });
 
 test("barLevelFill and barValueText use muted sage/terracotta fills and calm grey values", () => {

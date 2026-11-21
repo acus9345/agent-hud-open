@@ -42,6 +42,8 @@ mod worker;
 //   edge_hud_unsupported                 what this host cannot do
 //   watch_page                           report a page whose process ended, and
 //                                          finished loads (recovery.rs)
+//   sync_wheel_capture,                  forward wheel input over inactive HUDs
+//     shutdown_wheel_capture               when the host routes wheels by focus
 // generic.rs holds the pieces that need only Tauri's own window API; a host
 // re-exports those until it has a native adapter.
 #[cfg(not(target_os = "macos"))]
@@ -114,6 +116,7 @@ impl HudWindows {
             owner.stopped.store(true, Ordering::Release);
             owner.changed.notify_all();
         }
+        host::shutdown_wheel_capture();
     }
 }
 
@@ -195,6 +198,7 @@ fn reconcile(app: &tauri::AppHandle, connected: &HashSet<String>) {
             let cancelled = state.drag.take().is_some();
             if let Some(window) = app.get_webview_window(&owner.label) {
                 let _ = release_text_focus(&window, &mut state);
+                host::sync_wheel_capture(app, &window, &owner.screen_id, false, &[], None);
                 let _ = apply_ignore_cursor(&window, &mut state, true, true);
                 if let Err(error) = window.hide() {
                     eprintln!("Agent HUD hide on disconnect: {error}");

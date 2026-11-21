@@ -1,6 +1,7 @@
 //! Windows: the app keeps its taskbar entry, registers Ctrl+Alt+H to open
 //! Settings, and applies Win11 DWM rounded corners & dark borders to frameless
 //! auxiliary windows.
+use tauri::Manager;
 
 #[path = "windows/hotkey.rs"]
 mod hotkey;
@@ -15,20 +16,19 @@ pub(crate) fn install(app: &tauri::AppHandle) {
     hotkey::install(app);
 }
 
-pub(crate) fn window_opened(window: &tauri::WebviewWindow) {
+pub(crate) fn shutdown(app: &tauri::AppHandle) {
+    hotkey::shutdown(app);
+}
+
+pub(crate) fn set_window_border(window: &tauri::WebviewWindow, light: bool) {
     use windows::Win32::{
         Foundation::HWND,
-        Graphics::Dwm::{
-            DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_DEFAULT,
-            DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
-        },
+        Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_DEFAULT},
     };
     let Ok(raw) = window.hwnd() else {
         return;
     };
-    let hwnd = HWND(raw.0 as *mut core::ffi::c_void);
-    let corner = DWMWCP_ROUND.0 as u32;
-    let light = window.theme().ok() == Some(tauri::Theme::Light);
+    let hwnd = HWND(raw.0);
     let border = if light {
         DWMWA_COLOR_DEFAULT
     } else {
@@ -37,17 +37,33 @@ pub(crate) fn window_opened(window: &tauri::WebviewWindow) {
     unsafe {
         let _ = DwmSetWindowAttribute(
             hwnd,
-            DWMWA_WINDOW_CORNER_PREFERENCE,
-            (&raw const corner).cast(),
-            size_of::<u32>() as u32,
-        );
-        let _ = DwmSetWindowAttribute(
-            hwnd,
             DWMWA_BORDER_COLOR,
             (&raw const border).cast(),
             size_of::<u32>() as u32,
         );
     }
+}
+
+pub(crate) fn window_opened(window: &tauri::WebviewWindow) {
+    use windows::Win32::{
+        Foundation::HWND,
+        Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND},
+    };
+    let Ok(raw) = window.hwnd() else {
+        return;
+    };
+    let hwnd = HWND(raw.0);
+    let corner = DWMWCP_ROUND.0 as u32;
+    unsafe {
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            (&raw const corner).cast(),
+            size_of::<u32>() as u32,
+        );
+    }
+    let light = crate::appearance::resolved_light(window.app_handle(), window);
+    set_window_border(window, light);
 }
 
 pub(crate) fn windows_changed(_app: &tauri::AppHandle) {}

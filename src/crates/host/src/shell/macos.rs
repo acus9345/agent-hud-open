@@ -15,6 +15,10 @@ pub(crate) fn install(app: &tauri::AppHandle) {
     windows_changed(app);
 }
 
+pub(crate) fn shutdown(_app: &tauri::AppHandle) {}
+
+pub(crate) fn set_window_border(_window: &tauri::WebviewWindow, _light: bool) {}
+
 pub(crate) const CLIP_SHORTCUT: bool = true;
 
 /// Holds the clipboard window's shortcut, or lets it go.

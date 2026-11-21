@@ -4,7 +4,6 @@ import {
   EXIT_EASE,
   SCROLL_EASE,
   SCROLL_SPRING,
-  scrollEdgeGeometry,
 } from "@agent-hud/ui/lib/motion";
 import { horizontal, type HUDRect } from "../geometry";
 import { HUD_METRICS } from "../model";
@@ -78,14 +77,12 @@ export function HUDExpandedSurface({
   }, [atNotchRow, settle]);
   const inNotchRow = atNotchRow && rowSettled;
   const rowLight = inNotchRow ? false : light;
-  const scrollGeo = scrollEdgeGeometry(edge);
   const instant = reduceMotion || dragging;
   const transition = instant
     ? { duration: 0 }
     : {
         ...SCROLL_SPRING,
         opacity: { duration: 0.24, ease: SCROLL_EASE },
-        clipPath: { duration: 0.36, ease: SCROLL_EASE },
       };
   const from = {
     left: flared && horizontal(edge) ? strip.x - 8 : strip.x,
@@ -93,8 +90,43 @@ export function HUDExpandedSurface({
     width: flared && horizontal(edge) ? strip.width + 16 : strip.width,
     height: strip.height,
     opacity: 0,
-    clipPath: scrollGeo.clipClosed,
   };
+  const bridge = (() => {
+    if (!cardVisible || !detached || dragging) return null;
+    const minX = Math.min(strip.x, frame.x);
+    const maxRight = Math.max(strip.x + strip.width, frame.x + frame.width);
+    const minY = Math.min(strip.y, frame.y);
+    const maxBottom = Math.max(strip.y + strip.height, frame.y + frame.height);
+    const rect =
+      edge === "top"
+        ? {
+            left: minX,
+            top: strip.y + strip.height,
+            width: maxRight - minX,
+            height: Math.max(0, frame.y - (strip.y + strip.height)),
+          }
+        : edge === "bottom"
+          ? {
+              left: minX,
+              top: frame.y + frame.height,
+              width: maxRight - minX,
+              height: Math.max(0, strip.y - (frame.y + frame.height)),
+            }
+          : edge === "left"
+            ? {
+                left: strip.x + strip.width,
+                top: minY,
+                width: Math.max(0, frame.x - (strip.x + strip.width)),
+                height: maxBottom - minY,
+              }
+            : {
+                left: frame.x + frame.width,
+                top: minY,
+                width: Math.max(0, strip.x - (frame.x + frame.width)),
+                height: maxBottom - minY,
+              };
+    return rect.width > 0 && rect.height > 0 ? rect : null;
+  })();
 
   // What opens beside a Simple dock is cut where the dock is: it grows from behind the dock, the dock keeps its own
   // ground whatever is open, and over a see-through look the two would darken each other (Open
@@ -114,6 +146,23 @@ export function HUDExpandedSurface({
         clipPath: cut,
       }}
     >
+      {bridge && (
+        <div
+          className="hud-hover-floor"
+          aria-hidden="true"
+          onPointerEnter={(e) => {
+            if (!nativePointer) entered(e.altKey);
+          }}
+          onPointerLeave={domExited}
+          style={{
+            position: "absolute",
+            ...bridge,
+            zIndex: 2,
+            pointerEvents: "auto",
+            background: "transparent",
+          }}
+        />
+      )}
       <AnimatePresence initial={false} custom={dragging}>
         {(config.mode === "notch" || cardVisible) && (
           <motion.div
@@ -133,7 +182,6 @@ export function HUDExpandedSurface({
                         scaleX: simplePeek && !horizontal(edge) ? 0.2 : 0.9,
                         scaleY: simplePeek && !horizontal(edge) ? 1 : 0.9,
                         opacity: 0,
-                        clipPath: scrollGeo.clipClosed,
                       }
                     : from
             }
@@ -148,20 +196,18 @@ export function HUDExpandedSurface({
                     scaleX: 1,
                     scaleY: 1,
                     opacity: 1,
-                    clipPath: scrollGeo.clipOpen,
                   }
             }
             variants={{
               gone: (moving: boolean) =>
-                moving
+                moving || reduceMotion
                   ? { opacity: 0, transition: { duration: 0 } }
-                  : reduceMotion || detached
+                  : detached
                     ? {
                         opacity: 0,
-                        scaleX: 0.9,
-                        scaleY: 0.9,
-                        clipPath: scrollGeo.clipClosed,
-                        transition: { duration: 0.2, ease: EXIT_EASE },
+                        scaleX: 0.94,
+                        scaleY: 0.94,
+                        transition: { duration: 0.18, ease: EXIT_EASE },
                       }
                     : {
                         ...from,

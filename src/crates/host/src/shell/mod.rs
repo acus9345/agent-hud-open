@@ -20,6 +20,6 @@ mod host;
 #[path = "linux.rs"]
 mod host;
 pub(crate) use host::{
-    alert, clip_shortcut, install, pointer_monitor, prepare, reopened, system_languages,
-    toolbar_chrome, window_opened, windows_changed, CLIP_SHORTCUT, CUSTOM_CHROME,
+    alert, clip_shortcut, install, pointer_monitor, prepare, reopened, set_window_border, shutdown,
+    system_languages, toolbar_chrome, window_opened, windows_changed, CLIP_SHORTCUT, CUSTOM_CHROME,
 };

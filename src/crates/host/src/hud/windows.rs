@@ -9,8 +9,11 @@ use super::PointerKeys;
 mod displays;
 #[path = "windows/page.rs"]
 mod page;
+#[path = "windows/wheel.rs"]
+mod wheel;
 pub(super) use displays::{measure_screens, screen};
 pub(super) use page::watch_page;
+pub(super) use wheel::{shutdown_wheel_capture, sync_wheel_capture};
 
 /// Windows reports global physical desktop pixels, with a per-window DPI scale.
 pub(super) const GLOBAL_POINTS: bool = false;

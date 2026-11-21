@@ -18,11 +18,7 @@ import { LoadingState } from "./LoadingState";
 import { ViewErrorBoundary } from "./ViewErrorBoundary";
 import { themeFor } from "./statistics/StatsTheme";
 import { PagePlaceholder } from "./statistics/dashboard/Placeholder";
-import {
-  toggleWindowMaximize,
-  useCustomFrame,
-  WindowControls,
-} from "./WindowControls";
+import { useCustomFrame, WindowControls } from "./WindowControls";
 
 // Statistics does not need the shader/bot renderer, nor the settings panes.
 const Statistics = lazy(() => import("./Statistics"));
@@ -115,24 +111,7 @@ export function StatisticsWindow({
         data-theme={theme}
         data-custom-frame={customFrame ? "true" : undefined}
       >
-        <header
-          className="statistics-toolbar"
-          data-tauri-drag-region
-          onDoubleClick={
-            customFrame
-              ? (event) => {
-                  if (
-                    event.target === event.currentTarget ||
-                    (event.target as HTMLElement).classList.contains(
-                      "statistics-toolbar-spacer",
-                    )
-                  ) {
-                    toggleWindowMaximize();
-                  }
-                }
-              : undefined
-          }
-        >
+        <header className="statistics-toolbar" data-tauri-drag-region>
           <span className="statistics-toolbar-spacer" data-tauri-drag-region />
           <Tabs value={statisticsTab} onValueChange={setStatisticsTab}>
             <TabsList>

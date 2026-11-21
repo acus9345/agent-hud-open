@@ -1,6 +1,6 @@
 //! Global Windows shortcut (`Ctrl+Alt+H`) to open Settings, matching macOS's `⌘⌥H`.
 use std::sync::{
-    atomic::{AtomicU32, Ordering},
+    atomic::{AtomicBool, AtomicU32, Ordering},
     Arc,
 };
 use tauri::Manager;
@@ -24,11 +24,15 @@ use windows::{
 
 const HOTKEY_ID: i32 = 1;
 
-struct HotkeyGuard(Arc<AtomicU32>);
+struct HotkeySignal {
+    thread: AtomicU32,
+    stopping: AtomicBool,
+}
 
-impl Drop for HotkeyGuard {
-    fn drop(&mut self) {
-        let thread = self.0.load(Ordering::Acquire);
+impl HotkeySignal {
+    fn stop(&self) {
+        self.stopping.store(true, Ordering::Release);
+        let thread = self.thread.load(Ordering::Acquire);
         if thread != 0 {
             unsafe {
                 let _ = PostThreadMessageW(thread, WM_QUIT, WPARAM(0), LPARAM(0));
@@ -37,13 +41,30 @@ impl Drop for HotkeyGuard {
     }
 }
 
+struct HotkeyGuard(Arc<HotkeySignal>);
+
+impl Drop for HotkeyGuard {
+    fn drop(&mut self) {
+        self.0.stop();
+    }
+}
+
 pub(super) fn install(app: &tauri::AppHandle) {
-    let thread_id = Arc::new(AtomicU32::new(0));
-    app.manage(HotkeyGuard(Arc::clone(&thread_id)));
+    let signal = Arc::new(HotkeySignal {
+        thread: AtomicU32::new(0),
+        stopping: AtomicBool::new(false),
+    });
+    app.manage(HotkeyGuard(Arc::clone(&signal)));
     let handle = app.clone();
     let _ = std::thread::Builder::new()
         .name("agenthud-win-hotkey".into())
-        .spawn(move || run(handle, thread_id));
+        .spawn(move || run(handle, signal));
+}
+
+pub(super) fn shutdown(app: &tauri::AppHandle) {
+    if let Some(guard) = app.try_state::<HotkeyGuard>() {
+        guard.0.stop();
+    }
 }
 
 unsafe extern "system" fn wnd_proc(
@@ -55,7 +76,7 @@ unsafe extern "system" fn wnd_proc(
     unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
 }
 
-fn run(app: tauri::AppHandle, thread_slot: Arc<AtomicU32>) {
+fn run(app: tauri::AppHandle, signal: Arc<HotkeySignal>) {
     unsafe {
         let Ok(module) = GetModuleHandleW(None) else {
             return;
@@ -94,9 +115,9 @@ fn run(app: tauri::AppHandle, thread_slot: Arc<AtomicU32>) {
             let _ = DestroyWindow(hwnd);
             return;
         }
-        thread_slot.store(GetCurrentThreadId(), Ordering::Release);
+        signal.thread.store(GetCurrentThreadId(), Ordering::Release);
         let mut msg = MSG::default();
-        while GetMessageW(&mut msg, None, 0, 0).as_bool() {
+        while !signal.stopping.load(Ordering::Acquire) && GetMessageW(&mut msg, None, 0, 0).0 > 0 {
             if msg.message == WM_HOTKEY && msg.wParam.0 == HOTKEY_ID as usize {
                 crate::auxiliary::show(&app);
             }

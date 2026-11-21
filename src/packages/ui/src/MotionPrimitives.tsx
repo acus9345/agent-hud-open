@@ -51,20 +51,17 @@ export function ScrollUnfurl({
         opacity: 0,
         ...offsetPos,
         scale: 0.985,
-        clipPath: geo.clipClosed,
       }}
       animate={{
         opacity: 1,
         x: 0,
         y: 0,
         scale: 1,
-        clipPath: geo.clipOpen,
       }}
       exit={{
         opacity: 0,
         ...exitPos,
         scale: 0.985,
-        clipPath: geo.clipClosed,
         transition: { duration: 0.2, ease: EXIT_EASE },
       }}
       transition={{ duration, delay, ease: SCROLL_EASE }}

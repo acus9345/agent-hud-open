@@ -69,7 +69,9 @@ export function ClockProvider({
 /** Current live clock timestamp in ms, falling back to `fallbackMs` outside a clock feed. */
 export function useClockNow(fallbackMs: number): number {
   const clock = useContext(ClockContext);
-  return clock != null && Number.isFinite(clock) ? clock : fallbackMs;
+  return clock != null && Number.isFinite(clock)
+    ? Math.max(clock, fallbackMs)
+    : fallbackMs;
 }
 
 /** The text of an English key in the interface language:

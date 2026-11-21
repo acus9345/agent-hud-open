@@ -86,6 +86,14 @@ fn poll_pointer(app: tauri::AppHandle, shared: Arc<Shared>) {
             );
             let ignored = state.drag.is_none() && !pointer.inside;
             let _ = apply_ignore_cursor(&window, &mut state, ignored, false);
+            host::sync_wheel_capture(
+                &app,
+                &window,
+                &shared.screen_id,
+                !ignored && state.drag.is_none(),
+                state.regions.as_deref().unwrap_or_default(),
+                state.geometry.as_ref(),
+            );
             publish_pointer(&app, &shared, &mut state, pointer, false);
         } else if let Some(drag) = state.drag.take() {
             let mut original = drag.config;
@@ -99,6 +107,7 @@ fn poll_pointer(app: tauri::AppHandle, shared: Arc<Shared>) {
             let _ = release_text_focus(&window, &mut state);
         }
         if !visible {
+            host::sync_wheel_capture(&app, &window, &shared.screen_id, false, &[], None);
             publish_pointer(
                 &app,
                 &shared,
@@ -112,7 +121,7 @@ fn poll_pointer(app: tauri::AppHandle, shared: Arc<Shared>) {
         } else if visible && nearest <= 320.0 {
             Duration::from_millis(50)
         } else if visible {
-            Duration::from_millis(110)
+            Duration::from_millis(60)
         } else {
             Duration::from_millis(500)
         };

@@ -282,6 +282,7 @@ export const SourceHoverPanel = memo(function SourceHoverPanel({
         edge={scrollEdge}
         baseDelay={0.015}
         step={0.028}
+        style={{ flex: "0 0 auto" }}
       >
         <PanelFooter
           language={snapshotLanguage(snapshot)}
