@@ -1,6 +1,11 @@
 //! `list_sessions`: the sessions a message can go to, and which take one now.
 use super::*;
 
+fn project_matches(path: &str, filter: &str) -> bool {
+    let norm = |s: &str| s.replace('\\', "/").to_lowercase();
+    norm(path).contains(&norm(filter))
+}
+
 impl Messaging {
     /// The Claude Code and DeepSeek Harness sessions whose plugin checked in
     /// lately.
@@ -15,54 +20,104 @@ impl Messaging {
             .map(|row| row.target.session_id)
             .collect()
     }
-    pub(crate) fn list(&self, caller: Option<&Caller>, host: &Host<'_>) -> Value {
+    pub(crate) fn list(
+        &self,
+        caller: Option<&Caller>,
+        arguments: &Value,
+        host: &Host<'_>,
+    ) -> Value {
         let language = language(host.snapshot);
         let loaded = self.loaded();
+        let client_filter = arguments["client"].as_str().filter(|s| !s.is_empty());
+        let project_filter = arguments["project"].as_str().filter(|s| !s.is_empty());
+        let reachable_only = arguments["reachable_only"] == true;
+        let compact = arguments["compact"] == true;
         let mut rows = sessions(host.snapshot)
-            .map(|session| {
+            .filter_map(|session| {
                 let id = session["id"].as_str().unwrap_or_default();
                 let client = session["source"].as_str().unwrap_or_default();
+                if client_filter.is_some_and(|want| want != client) {
+                    return None;
+                }
+                let project = session["cwd"]
+                    .as_str()
+                    .or_else(|| session["project"].as_str());
+                if project_filter
+                    .is_some_and(|want| !project.is_some_and(|p| project_matches(p, want)))
+                {
+                    return None;
+                }
                 let (reachable, reason) =
                     self.reachable(client, id, &loaded, (session, host.snapshot), language);
+                if reachable_only && reachable != json!(true) {
+                    return None;
+                }
                 let (steerable, steer_reason) =
                     self.steerable(client, id, session, &loaded, language);
-                json!({
-                    "id": id,
-                    "client": client,
-                    "title": session["title"],
-                    "project": session["cwd"].as_str().or(session["project"].as_str()),
-                    "state": state(session),
-                    "model": session["model"].as_str().filter(|model| !model.is_empty()),
-                    "reachable": reachable,
-                    "reason": reason,
-                    "steerable": steerable,
-                    "steerReason": steer_reason,
-                    "self": caller.is_some_and(|caller| same_identity((&caller.client, &caller.session_id), (client, id))),
-                    "updatedAt": session["updatedAt"],
-                })
+                let mut row = serde_json::Map::new();
+                row.insert("id".into(), json!(id));
+                row.insert("client".into(), json!(client));
+                row.insert("title".into(), session["title"].clone());
+                row.insert("project".into(), json!(project));
+                row.insert("state".into(), json!(state(session)));
+                row.insert(
+                    "model".into(),
+                    json!(session["model"].as_str().filter(|model| !model.is_empty())),
+                );
+                row.insert("reachable".into(), reachable.clone());
+                if !(compact && reachable == json!(true)) {
+                    row.insert("reason".into(), json!(reason));
+                }
+                row.insert("steerable".into(), json!(steerable));
+                if !compact {
+                    row.insert("steerReason".into(), json!(steer_reason));
+                }
+                row.insert(
+                    "self".into(),
+                    json!(caller.is_some_and(|caller| same_identity(
+                        (&caller.client, &caller.session_id),
+                        (client, id)
+                    ))),
+                );
+                row.insert("updatedAt".into(), session["updatedAt"].clone());
+                Some(Value::Object(row))
             })
             .collect::<Vec<_>>();
         rows.sort_by(|a, b| b["updatedAt"].as_str().cmp(&a["updatedAt"].as_str()));
-        // The clients `start_session` starts; the phone and the person's own
-        // window also start Pi and OpenCode.
-        let starts = self
-            .starts
-            .offers_for(&all_sessions(host.snapshot))
-            .into_iter()
-            .filter(|offer| {
-                matches!(
-                    offer.provider,
-                    Provider::Claude | Provider::Codex | Provider::Antigravity | Provider::DeepSeek
-                )
-            })
-            .map(|offer| {
-                (
-                    offer.provider.as_str().to_owned(),
-                    json!({"folders":offer.folders,"withoutFolder":offer.without_folder,"app":offer.app}),
-                )
-            })
-            .collect::<serde_json::Map<_, _>>();
-        json!({"sessions":rows,"startFolders":starts,"passLimit":self.preferences.limit,"sendsAs":if self.preferences.as_user {"user"} else {"labelled"}})
+        let mut response = serde_json::Map::new();
+        response.insert("sessions".into(), Value::Array(rows));
+        if !compact {
+            // The clients `start_session` starts; the phone and the person's own
+            // window also start Pi and OpenCode.
+            let starts = self
+                .starts
+                .offers_for(&all_sessions(host.snapshot))
+                .into_iter()
+                .filter(|offer| {
+                    matches!(
+                        offer.provider,
+                        Provider::Claude | Provider::Codex | Provider::Antigravity | Provider::DeepSeek
+                    )
+                })
+                .map(|offer| {
+                    (
+                        offer.provider.as_str().to_owned(),
+                        json!({"folders":offer.folders,"withoutFolder":offer.without_folder,"app":offer.app}),
+                    )
+                })
+                .collect::<serde_json::Map<_, _>>();
+            response.insert("startFolders".into(), Value::Object(starts));
+        }
+        response.insert("passLimit".into(), json!(self.preferences.limit));
+        response.insert(
+            "sendsAs".into(),
+            json!(if self.preferences.as_user {
+                "user"
+            } else {
+                "labelled"
+            }),
+        );
+        Value::Object(response)
     }
 
     /// Whether a message sent with `delivery: steer` would go into a turn of

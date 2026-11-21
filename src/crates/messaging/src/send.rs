@@ -21,6 +21,11 @@ impl Messaging {
             Some("steer") => true,
             Some(_) => return Err("delivery is queue or steer".into()),
         };
+        let expect_reply = match arguments.get("expect_reply") {
+            None | Some(Value::Null) => true,
+            Some(Value::Bool(value)) => *value,
+            Some(_) => return Err("expect_reply must be a boolean".into()),
+        };
         // A reply goes back to whoever sent the message it answers.
         let replied = reply_to
             .and_then(|parent| self.journal.find(parent))
@@ -116,7 +121,16 @@ impl Messaging {
             self.form()
         };
         let from = sender.clone();
-        let delivered = words::compose(language, form, &from, client, &id, reply_to, text);
+        let delivered = words::compose_message(
+            language,
+            form,
+            &from,
+            client,
+            &id,
+            reply_to,
+            expect_reply,
+            text,
+        );
         let delivered = if steer {
             words::steered(language, delivered)
         } else {
@@ -184,10 +198,11 @@ impl Messaging {
             state: state.into(),
             reason: reason.clone(),
             turn: None,
-            answered: false,
+            answered: !expect_reply,
             replied_by: None,
             steered_into,
             call: self.calling.clone(),
+            text: Some(text.to_owned()),
         };
         // A reply that went back to its parent's sender settles the parent:
         // the journal names this reply, and its plane is the one back, so the

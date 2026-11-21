@@ -15,10 +15,12 @@
 //! what to whom, a fingerprint of the words and where the answer will be, and
 //! an answer is read again from the other session's transcript each time.
 mod flights;
+mod history;
 mod journal;
 mod listing;
 mod models;
 mod outcome;
+mod peek;
 mod preferences;
 mod send;
 mod snapshot;
@@ -234,7 +236,8 @@ impl Messaging {
             }
         }
         match name {
-            "list_sessions" => Ok(self.list(caller.as_ref(), host)),
+            "list_sessions" => Ok(self.list(caller.as_ref(), arguments, host)),
+            "peek_session" => self.peek(arguments, host),
             "list_models" => self.models(arguments),
             "send_message" | "start_session" => {
                 let Some(caller) = caller else {
@@ -279,7 +282,7 @@ impl Messaging {
     pub fn waiting(&self) -> bool {
         self.journal.pending()
     }
-    pub fn maintain(&mut self, host: &Host<'_>, now: i64) {
+    pub fn maintain(&mut self, host: &Host<'_>, now: i64) -> bool {
         self.preferences = Preferences::read(&host.snapshot["settings"]);
         let clients = self.clients.clone();
         let mut changed = self.journal.prune(now);
@@ -307,5 +310,6 @@ impl Messaging {
         if changed {
             self.journal.save();
         }
+        changed
     }
 }

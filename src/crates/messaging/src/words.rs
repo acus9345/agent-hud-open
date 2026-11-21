@@ -32,14 +32,20 @@ fn client(client: &str) -> &'static str {
 
 /// Agent HUD's send_message as the recipient's client names it to its model.
 /// Each client also has a send_message of its own (Claude Code's SendMessage,
-/// Codex's for its collaborators, Harness's for its sub-agents), so a bare
-/// "send_message" is taken for those. Antigravity's name is not known yet.
+/// Codex's for its collaborators, Harness's for its sub-agents, Antigravity's
+/// for sub-agents), so a bare "send_message" is taken for those.
 fn reply_tool(language: Language, client: &str) -> String {
     let name = match client {
         // Their logs show the Claude Code naming for Agent HUD's tools.
         "claude" | "deepseek" | "kimi" | "qoder" | "qoder-cn" | "qoder-work" | "workbuddy"
         | "codebuddy" | "zcode" => "mcp__agent-hud__send_message",
         "codex" => "mcp__agent_hud__send_message",
+        "antigravity" => {
+            return tr_in(
+                language,
+                "Agent HUD's MCP send_message tool (not built-in subagent send_message)",
+            );
+        }
         _ => return tr_in(language, "agent-hud's send_message tool"),
     };
     fill(
@@ -48,12 +54,8 @@ fn reply_tool(language: Language, client: &str) -> String {
     )
 }
 
-/// The words delivered. Labelled: a first line naming the sender and the
-/// message, the text, and a last line saying how to reply: with send_message
-/// and reply_to, as the recipient's client names that tool, so the reply comes
-/// back as a message; the sender reads nothing else. A reply's last line is
-/// shorter, so two agents do not thank each other back and forth. As the
-/// user's own: the text alone.
+/// Convenience wrapper for `compose_message` with `expect_reply: true`.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn compose(
     language: Language,
     form: PromptForm,
@@ -61,6 +63,22 @@ pub fn compose(
     to_client: &str,
     id: &str,
     reply_to: Option<&str>,
+    text: &str,
+) -> String {
+    compose_message(language, form, from, to_client, id, reply_to, true, text)
+}
+
+/// The words delivered. Labelled: a first line naming the sender and the
+/// message, the text, and (when `expect_reply` is true) a last line saying how
+/// to reply with `send_message` and `reply_to`. As the user's own: the text alone.
+pub fn compose_message(
+    language: Language,
+    form: PromptForm,
+    from: &Party,
+    to_client: &str,
+    id: &str,
+    reply_to: Option<&str>,
+    expect_reply: bool,
     text: &str,
 ) -> String {
     if form == PromptForm::Own {
@@ -110,6 +128,9 @@ pub fn compose(
             ("title", &title),
         ],
     );
+    if !expect_reply {
+        return format!("{label}\n\n{text}");
+    }
     let footer = fill(
         &footer,
         &[("tool", &tool), ("id", &id), ("parent", &parent)],

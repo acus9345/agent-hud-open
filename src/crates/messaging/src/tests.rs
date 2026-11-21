@@ -751,7 +751,7 @@ fn a_send_answers_only_whether_the_words_were_handed_over() {
 }
 
 #[test]
-fn the_group_lists_its_four_tools_only_while_it_is_on() {
+fn the_group_lists_its_five_tools_only_while_it_is_on() {
     assert_eq!(Messaging::tools(false), json!({"tools":[]}));
     let names = Messaging::tools(true)["tools"]
         .as_array()
@@ -763,6 +763,7 @@ fn the_group_lists_its_four_tools_only_while_it_is_on() {
         names,
         [
             "list_sessions",
+            "peek_session",
             "list_models",
             "send_message",
             "start_session"
@@ -770,7 +771,14 @@ fn the_group_lists_its_four_tools_only_while_it_is_on() {
     );
     for tool in Messaging::tools(true)["tools"].as_array().unwrap() {
         assert_eq!(tool["inputSchema"]["type"], "object");
-        assert!(tool["description"].as_str().unwrap().len() > 80);
+        let desc = tool["description"].as_str().unwrap();
+        assert!(desc.len() > 80, "{} too short: {desc}", tool["name"]);
+        assert!(
+            desc.len() <= 900,
+            "{} too verbose ({}): {desc}",
+            tool["name"],
+            desc.len()
+        );
     }
 }
 
@@ -2195,7 +2203,7 @@ fn the_reply_line_names_the_tool_as_the_recipients_client_does() {
     assert!(line(Language::En, "codex", None).contains("mcp__agent_hud__send_message"));
     assert_eq!(
         line(Language::En, "antigravity", None),
-        "Reply with agent-hud's send_message tool, reply_to: m-1: your reply reaches the sender as a message."
+        "Reply with Agent HUD's MCP send_message tool (not built-in subagent send_message), reply_to: m-1: your reply reaches the sender as a message."
     );
     assert_eq!(
         line(Language::ZhHans, "deepseek", Some("m-0")),
@@ -2824,5 +2832,6 @@ fn list_sessions_says_a_running_codex_with_its_thread_open_can_be_steered() {
 }
 
 mod calls;
+mod efficiency;
 mod models;
 mod steer;

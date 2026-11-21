@@ -46,6 +46,9 @@ impl Backend {
             .unwrap_or_else(PoisonError::into_inner) = self.snapshot.clone();
         if changed || recovered {
             self.publish_snapshot(app);
+            if let Some(messages) = &self.messages {
+                messages.wake_if_waiting();
+            }
             if let (Some(extension), Some(snapshot)) = (&self.extension, &self.snapshot) {
                 extension.observe_snapshot(Arc::clone(snapshot));
             }

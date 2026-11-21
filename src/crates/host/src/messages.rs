@@ -16,13 +16,22 @@ use agent_hud_runtime::delivery::{
 use serde_json::Value;
 use std::{
     path::PathBuf,
-    sync::{mpsc, Arc, Mutex, PoisonError, Weak},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Condvar, Mutex, PoisonError, Weak,
+    },
     thread::JoinHandle,
     time::{Duration, SystemTime},
 };
 use tauri::Manager;
 
 const LOOK: Duration = Duration::from_secs(5);
+
+#[derive(Default)]
+struct LookSignal {
+    stop: bool,
+    wake: bool,
+}
 
 /// The host's own senders: their receipts, and the Claude jobs it follows.
 struct Own {
@@ -32,11 +41,14 @@ struct Own {
 }
 
 pub(crate) struct AgentMessages {
+    app: tauri::AppHandle,
     messaging: Mutex<Messaging>,
+    waiting: AtomicBool,
+    signal: Arc<(Mutex<LookSignal>, Condvar)>,
     conversations: Option<Arc<dyn Turns>>,
     own: Option<Arc<Own>>,
     backend: Weak<Mutex<Backend>>,
-    looks: Mutex<Option<(mpsc::Sender<()>, JoinHandle<()>)>>,
+    looks: Mutex<Option<JoinHandle<()>>>,
 }
 
 impl AgentMessages {
@@ -69,28 +81,55 @@ impl AgentMessages {
             delivery.follow,
             Arc::new(move |flight| activity::publish(&flights, "hud:flight", &flight)),
         );
+        let initial_waiting = messaging.waiting();
+        let signal = Arc::new((Mutex::new(LookSignal::default()), Condvar::new()));
         let owner = Arc::new(Self {
+            app: app.clone(),
             messaging: Mutex::new(messaging),
+            waiting: AtomicBool::new(initial_waiting),
+            signal: Arc::clone(&signal),
             conversations: delivery.conversations,
             own,
             backend,
             looks: Mutex::new(None),
         });
-        let (stop, stopped) = mpsc::channel::<()>();
         let looker = Arc::downgrade(&owner);
         let thread = std::thread::Builder::new()
             .name("agenthud-messages".into())
-            .spawn(move || {
-                while let Err(mpsc::RecvTimeoutError::Timeout) = stopped.recv_timeout(LOOK) {
-                    match looker.upgrade() {
-                        Some(owner) => owner.look(),
-                        None => break,
+            .spawn(move || loop {
+                {
+                    let mut state = signal.0.lock().unwrap_or_else(PoisonError::into_inner);
+                    while !state.stop && !state.wake {
+                        let (next, timeout) = signal
+                            .1
+                            .wait_timeout(state, LOOK)
+                            .unwrap_or_else(PoisonError::into_inner);
+                        state = next;
+                        if timeout.timed_out() {
+                            break;
+                        }
                     }
+                    if state.stop {
+                        break;
+                    }
+                    state.wake = false;
+                }
+                match looker.upgrade() {
+                    Some(owner) => owner.look(),
+                    None => break,
                 }
             })
             .map_err(|error| error.to_string())?;
-        *owner.looks.lock().unwrap_or_else(PoisonError::into_inner) = Some((stop, thread));
+        *owner.looks.lock().unwrap_or_else(PoisonError::into_inner) = Some(thread);
         Ok(owner)
+    }
+
+    pub(crate) fn wake_if_waiting(&self) {
+        if self.waiting.load(Ordering::Acquire) {
+            let mut state = self.signal.0.lock().unwrap_or_else(PoisonError::into_inner);
+            state.wake = true;
+            self.signal.1.notify_all();
+        }
     }
 
     /// The group's tools while it is on, as the relay lists them.
@@ -101,16 +140,34 @@ impl AgentMessages {
     /// One tool call from the relay: `{name, arguments, caller}`.
     pub(crate) fn call(&self, params: &Value) -> Result<Value, String> {
         let snapshot = self.snapshot()?;
-        let query = self.query();
-        let host = Host {
-            snapshot: &snapshot,
-            query: &query,
-            conversations: self.conversations.as_deref(),
-        };
+        let sending = matches!(
+            params["name"].as_str(),
+            Some("send_message" | "start_session")
+        );
+        let (result, waiting) = self.with_messaging(&snapshot, |messaging, host| {
+            let result = messaging.call(params, host, chrono::Utc::now().timestamp_millis());
+            (result, messaging.waiting())
+        });
+        self.waiting.store(waiting, Ordering::Release);
+        if sending && result.is_ok() {
+            self.publish_changed();
+        }
+        result
+    }
+
+    fn publish_changed(&self) {
+        activity::publish(
+            &self.app,
+            "agent-messages:changed",
+            &serde_json::json!(true),
+        );
+    }
+
+    pub(crate) fn history(&self, snapshot: &Value) -> Value {
         self.messaging
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .call(params, &host, chrono::Utc::now().timestamp_millis())
+            .history(snapshot)
     }
 
     /// Runs `work` with the group's senders and this moment's facts, for the
@@ -121,9 +178,17 @@ impl AgentMessages {
         work: impl FnOnce(&mut Messaging, &Host<'_>) -> T,
     ) -> Result<T, String> {
         let snapshot = self.snapshot()?;
+        Ok(self.with_messaging(&snapshot, work))
+    }
+
+    fn with_messaging<T>(
+        &self,
+        snapshot: &Value,
+        work: impl FnOnce(&mut Messaging, &Host<'_>) -> T,
+    ) -> T {
         let query = self.query();
         let host = Host {
-            snapshot: &snapshot,
+            snapshot,
             query: &query,
             conversations: self.conversations.as_deref(),
         };
@@ -131,7 +196,7 @@ impl AgentMessages {
             .messaging
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
-        Ok(work(&mut messaging, &host))
+        work(&mut messaging, &host)
     }
 
     /// The 5-second look: the host's own senders' receipts and moves, and
@@ -150,20 +215,17 @@ impl AgentMessages {
         if !Preferences::read(&snapshot["settings"]).enabled {
             return;
         }
-        let mut messaging = self
-            .messaging
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner);
-        if !messaging.waiting() {
-            return;
+        let (changed, waiting) = self.with_messaging(&snapshot, |messaging, host| {
+            if !messaging.waiting() {
+                return (false, false);
+            }
+            let changed = messaging.maintain(host, chrono::Utc::now().timestamp_millis());
+            (changed, messaging.waiting())
+        });
+        self.waiting.store(waiting, Ordering::Release);
+        if changed {
+            self.publish_changed();
         }
-        let query = self.query();
-        let host = Host {
-            snapshot: &snapshot,
-            query: &query,
-            conversations: self.conversations.as_deref(),
-        };
-        messaging.maintain(&host, chrono::Utc::now().timestamp_millis());
     }
 
     fn snapshot(&self) -> Result<Arc<Value>, String> {
@@ -190,13 +252,17 @@ impl AgentMessages {
     }
 
     pub(crate) fn stop(&self) {
-        let looks = self
+        {
+            let mut state = self.signal.0.lock().unwrap_or_else(PoisonError::into_inner);
+            state.stop = true;
+            self.signal.1.notify_all();
+        }
+        if let Some(thread) = self
             .looks
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .take();
-        if let Some((stop, thread)) = looks {
-            let _ = stop.send(());
+            .take()
+        {
             let _ = thread.join();
         }
     }
