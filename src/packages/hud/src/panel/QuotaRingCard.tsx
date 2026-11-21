@@ -23,8 +23,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@agent-hud/ui/components/tooltip";
+import { quotaDisplayName } from "./quota-row-format";
 import { palette, type Measure } from "./theme";
-import { levelFill, markLevelText } from "../tokens";
+import { barValueText, levelFill } from "../tokens";
 
 /** The ring's diameter and line for each `ringSize`. */
 const RINGS = {
@@ -114,9 +115,7 @@ export function QuotaRingCard({
       ? colors.secondary
       : levelFill(row.status === "normal" ? "ok" : row.status, ground);
   const figure = (row: Quota) =>
-    row.status === "stale"
-      ? colors.secondary
-      : markLevelText(row.status, ground);
+    row.status === "stale" ? colors.secondary : barValueText(ground);
   const tightest = mostUsed(drawn);
   // Alone, the ring's figure is the picked measure's, as the lines' would be.
   const figureText = tightest
@@ -241,8 +240,8 @@ export function QuotaRingCard({
                 style={{ display: "contents" }}
               >
                 <FittingName
-                  name={row.name}
-                  short={quotaShortName(row)}
+                  name={quotaDisplayName(row.name)}
+                  short={quotaDisplayName(quotaShortName(row))}
                   style={{ ...cell, color: colors.text }}
                 />
                 <strong

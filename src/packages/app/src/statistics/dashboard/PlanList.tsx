@@ -1,9 +1,20 @@
 import { HUDArtwork as HUDLogo } from "@agent-hud/hud/HUDArtwork";
-import { listCost, listPrice, moneyShort } from "@agent-hud/ui/format";
+import {
+  cleanDeviceCopy,
+  listCost,
+  listPrice,
+  moneyShort,
+} from "@agent-hud/ui/format";
 import type { BillingAccount, PlanValueResponse } from "@agent-hud/protocol";
 import { vendorKey } from "@agent-hud/hud/model";
 import { useFormat, useT } from "@agent-hud/ui/format-context";
-import { number, row, truncate, type StatsTheme } from "../StatsTheme";
+import {
+  number,
+  row,
+  surfaceStyle,
+  truncate,
+  type StatsTheme,
+} from "../StatsTheme";
 import { adviceText } from "../plan-value-text";
 import { Panel } from "./Panel";
 import type { Pending } from "./pending";
@@ -42,13 +53,11 @@ export function PlanList({
   const t = useT();
   const { language } = useFormat();
   const tile = {
+    ...surfaceStyle(theme, "secondary"),
     display: "grid",
     alignContent: "start",
     gap: 4,
-    minWidth: 0,
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: `1px solid ${theme.divider}`,
+    padding: "12px 14px",
   } as const;
   const accounts = (data?.accounts ?? []).filter(
     (account) => !agents || agents.includes(account.provider),
@@ -56,6 +65,8 @@ export function PlanList({
   return (
     <Panel
       area="plans"
+      variant="plain"
+      motionIndex={4}
       pending={[pending]}
       theme={theme}
       title={t("Subscriptions and balances")}
@@ -142,6 +153,7 @@ export function PlanList({
                 style={{
                   fontVariantNumeric: "tabular-nums",
                   fontSize: 11,
+                  lineHeight: 1.45,
                   color: theme.secondary,
                   overflowWrap: "anywhere",
                 }}
@@ -154,11 +166,11 @@ export function PlanList({
                         language,
                       ),
                     })
-                  : t("No monthly list price")}
+                  : t("No fixed price")}
                 {worth
                   ? t(" · worth {{worth}}", { worth })
                   : account.unavailable
-                    ? ` · ${account.unavailable}`
+                    ? ` · ${cleanDeviceCopy(account.unavailable)}`
                     : ""}
               </span>
               {account.advice && (

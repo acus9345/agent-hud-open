@@ -7,6 +7,7 @@ import { useGround } from "../ground";
 import { markLevelText } from "../tokens";
 import { FittingName } from "./FittingName";
 import { QuotaRingCard } from "./QuotaRingCard";
+import { quotaDisplayName } from "./quota-row-format";
 import { SourceQuotaRow } from "./SourceQuotaRow";
 import { palette, type Measure } from "./theme";
 
@@ -99,8 +100,8 @@ export function QuotaWidgets({
             }}
           >
             <FittingName
-              name={row.name}
-              short={quotaShortName(row)}
+              name={quotaDisplayName(row.name)}
+              short={quotaDisplayName(quotaShortName(row))}
               wrap
               style={{
                 alignSelf: "stretch",

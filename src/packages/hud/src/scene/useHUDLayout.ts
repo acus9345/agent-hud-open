@@ -92,11 +92,9 @@ export function useHUDLayout({
 
   const delivery = useRequestDelivery(snapshot, request, focusedVendor?.key);
 
-  // The inspector, like a message, is a card of its own beside the dock;
-  // only the notch grows it out of itself.
-  const detached =
-    config.mode !== "notch" &&
-    Boolean(focusedVendor || standaloneAlert || ends.view === "clip");
+  // Simple-mode panels float cleanly beside the dock with no overlapping black
+  // gutter behind the dock; only the notch grows out of itself.
+  const detached = config.mode !== "notch";
   const peek = Boolean(
     open && detached && !pinned && !standaloneAlert && focusedVendor,
   );
@@ -118,13 +116,10 @@ export function useHUDLayout({
         ? 470
         : focusedVendor
           ? Math.max(440, config.panelWidth - 100)
-          : !horizontal(edge) && !detached
+          : config.mode === "simple" && !horizontal(edge)
             ? Math.min(
-                screen.width - 16,
-                Math.max(
-                  config.panelWidth,
-                  404 + metrics.width + 12 + surfaceFlare + 16,
-                ),
+                Math.max(320, screen.width - strip.width - 16),
+                config.panelWidth,
               )
             : config.panelWidth;
   // On a side edge the line starts behind the dock, so it reads as the dock growing; that side carries no text.
@@ -175,7 +170,16 @@ export function useHUDLayout({
           }
         : {
             width: fullWidth,
-            height: Math.max(80, Math.min(contentHeight, screen.height - 80)),
+            height: Math.max(
+              80,
+              Math.min(
+                contentHeight,
+                screen.height -
+                  (horizontal(edge) && config.mode === "simple"
+                    ? strip.height + 24
+                    : 24),
+              ),
+            ),
           };
 
   const focusedIndex = vendors.findIndex((v) => v.key === focusedVendor?.key);

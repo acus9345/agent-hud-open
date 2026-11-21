@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { MotionConfig } from "motion/react";
+import { ScrollItem } from "@agent-hud/ui/MotionPrimitives";
 import type { Snapshot } from "@agent-hud/protocol";
 import { Button } from "@agent-hud/ui/components/button";
 import {
@@ -177,6 +178,9 @@ export const SourceHoverPanel = memo(function SourceHoverPanel({
     ],
     config.panelSections ?? defaultHUDConfig.panelSections,
   );
+  const scrollEdge = config.mode === "notch" ? "top" : config.edge;
+  const visibleSections = sections.filter((section) => section.content);
+  let cascadeIndex = 0;
   const panel = (
     <div
       ref={panelElement}
@@ -219,38 +223,48 @@ export const SourceHoverPanel = memo(function SourceHoverPanel({
           }}
         >
           {inlineAlert && (
-            <div data-hud-section="inline-alert" style={carded}>
+            <ScrollItem
+              index={cascadeIndex++}
+              edge={scrollEdge}
+              sectionId="inline-alert"
+              style={carded}
+            >
               {inlineAlert}
-            </div>
+            </ScrollItem>
           )}
           {snapshot.indexing?.kind && (
-            <div data-hud-section="indexing" style={carded}>
+            <ScrollItem
+              index={cascadeIndex++}
+              edge={scrollEdge}
+              sectionId="indexing"
+              style={carded}
+            >
               <SourceIndexing snapshot={snapshot} light={light} />
-            </div>
+            </ScrollItem>
           )}
           {focusVendor && !vendorNames.length && (
             <strong style={{ fontSize: 13, fontWeight: 600 }}>
               {focusVendor}
             </strong>
           )}
-          {sections
-            .filter((section) => section.content)
-            .map((section) => (
-              <div
-                key={section.key}
-                data-hud-section={section.key}
-                // The blocks are cards already, and so are the sections a
-                // row, column or grid of an agent's holds.
-                style={
-                  section.key === "blocks" ||
-                  (section.custom && heldSections(custom[section.key]).length)
-                    ? undefined
-                    : carded
-                }
-              >
-                {section.custom ? customAt(section.key) : section.content}
-              </div>
-            ))}
+          {visibleSections.map((section) => (
+            <ScrollItem
+              key={section.key}
+              index={cascadeIndex++}
+              edge={scrollEdge}
+              sectionId={section.key}
+              // The blocks are cards already, and so are the sections a
+              // row, column or grid of an agent's holds.
+              style={
+                section.key === "blocks" ||
+                (section.custom && heldSections(custom[section.key]).length)
+                  ? undefined
+                  : carded
+              }
+            >
+              {section.custom ? customAt(section.key) : section.content}
+            </ScrollItem>
+          ))}
         </div>
       </div>
       <PanelDraftBar
@@ -263,15 +277,22 @@ export const SourceHoverPanel = memo(function SourceHoverPanel({
           {t("Finish editing")}
         </Button>
       )}
-      <PanelFooter
-        language={snapshotLanguage(snapshot)}
-        colors={colors}
-        lined={!separated}
-        onConfigure={onConfigure}
-        onStats={onStats}
-        update={update}
-        onUpdate={onUpdate}
-      />
+      <ScrollItem
+        index={cascadeIndex}
+        edge={scrollEdge}
+        baseDelay={0.015}
+        step={0.028}
+      >
+        <PanelFooter
+          language={snapshotLanguage(snapshot)}
+          colors={colors}
+          lined={!separated}
+          onConfigure={onConfigure}
+          onStats={onStats}
+          update={update}
+          onUpdate={onUpdate}
+        />
+      </ScrollItem>
     </div>
   );
   // The panel's charts move as the HUD does: not at all when animations are

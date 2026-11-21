@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 import { ChevronDown, X } from "lucide-react";
+import { MotionChip } from "@agent-hud/ui/DashboardMotion";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -85,8 +86,9 @@ export function FilterBar({
         top: 44,
         zIndex: 15,
         gap: 12,
-        padding: "6px 0 12px",
-        background: `var(--statistics-ground, ${theme.ground})`,
+        padding: "8px 0 12px",
+        background: light ? "rgba(245,245,247,0.82)" : "rgba(17,18,20,0.82)",
+        backdropFilter: "blur(14px)",
         borderBottom: `1px solid ${theme.divider}`,
         flexWrap: "wrap",
       }}
@@ -97,19 +99,17 @@ export function FilterBar({
         className="stats-agent-chips"
         style={{ ...row, gap: 6, flex: "1 1 320px", overflowX: "auto" }}
       >
-        <button
-          type="button"
+        <MotionChip
           role="radio"
           aria-checked={selected === null}
           onClick={() => setSelected(null)}
           style={chip(theme, selected === null)}
         >
           {t("All agents")}
-        </button>
+        </MotionChip>
         {agents.map((entry) => (
-          <button
+          <MotionChip
             key={entry.id}
-            type="button"
             role="checkbox"
             aria-checked={Boolean(selected?.includes(entry.id))}
             title={t("Click to see this agent alone; ⌘-click to add it")}
@@ -128,7 +128,7 @@ export function FilterBar({
           >
             <HUDLogo source={entry.id} size={14} light={light} />
             {entry.name}
-          </button>
+          </MotionChip>
         ))}
       </div>
       <div style={{ ...row, gap: 8, flex: "none", marginLeft: "auto" }}>
@@ -193,8 +193,7 @@ export function FilterBar({
           </DropdownMenuContent>
         </DropdownMenu>
         {range.id === "day" && (
-          <button
-            type="button"
+          <MotionChip
             onClick={() => setRange({ id: "30d" })}
             aria-label={t("Back to 30 days")}
             style={{ ...chip(theme, true), height: 28, gap: 5 }}
@@ -204,7 +203,7 @@ export function FilterBar({
               { month: "short", day: "numeric", weekday: "short" },
             )}
             <X size={12} style={{ opacity: 0.7 }} />
-          </button>
+          </MotionChip>
         )}
         <Segments
           label={t("Range")}

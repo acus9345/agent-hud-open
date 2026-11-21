@@ -5,11 +5,10 @@ import { useTweens } from "../motion";
 
 const PLOT = 22;
 
-/** A share's colour: quiet while it is fine, amber from 70%, red from 90%. */
+/** A share's colour: quiet while it is fine, muted terracotta red from 90% (no yellow). */
 export function levelFill(used: number, theme: StatsTheme): string {
   const level = cycleLevel(used);
-  if (level === "critical") return theme.light ? "#e0352b" : "#ff453a";
-  if (level === "warning") return theme.light ? "#c27c00" : "#ff9f0a";
+  if (level === "critical") return "#c34b44";
   return theme.secondary;
 }
 

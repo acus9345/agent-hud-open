@@ -70,10 +70,11 @@ export function ModelBar({
       aria-hidden
       style={{
         display: "flex",
-        height: 5,
+        gap: 2,
+        height: 4,
         overflow: "hidden",
         background: theme.track,
-        borderRadius: 3,
+        borderRadius: 999,
       }}
     >
       {models.map((model) => (
@@ -82,6 +83,7 @@ export function ModelBar({
           style={{
             flex: `${total > 0 ? model.selectedTokens / total : 0} 1 0`,
             minWidth: 0,
+            borderRadius: 999,
             background: modelColor(model.id),
             transition:
               "flex-grow 240ms cubic-bezier(0.22, 1, 0.36, 1), background-color 200ms ease",
@@ -107,7 +109,10 @@ export function ModelList({
   const rest = models.slice(3);
   const restTokens = rest.reduce((sum, model) => sum + model.selectedTokens, 0);
   return (
-    <div style={{ display: "grid", gap: 5, minWidth: 0, flex: 1 }}>
+    <div style={{ display: "grid", gap: 7, minWidth: 0, flex: 1 }}>
+      <span style={{ fontSize: 11, fontWeight: 500, color: theme.tertiary }}>
+        {t("Models")}
+      </span>
       <ModelBar models={models} total={total} theme={theme} />
       {models.slice(0, 3).map((model) => (
         <ModelLine key={model.id} model={model} total={total} theme={theme} />

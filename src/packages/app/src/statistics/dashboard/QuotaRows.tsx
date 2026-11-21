@@ -14,7 +14,7 @@ import {
   truncate,
   type StatsTheme,
 } from "../StatsTheme";
-import { QuotaDayBars, levelFill } from "./QuotaDayBars";
+import { QuotaDayBars } from "./QuotaDayBars";
 import { isLong, quotaDays, weekly, type QuotaDay } from "./quota-days";
 import { useWidth } from "./Panel";
 
@@ -88,8 +88,12 @@ export function QuotaRows({
       minute: "2-digit",
       hour12: false,
     });
+  const cleanName = (window: QuotaHistoryWindow) =>
+    (window.shortLabel ?? window.name)
+      .replace(/\bWeekly Limit Remaining\b/i, "Weekly")
+      .replace(/\bFive Hour Limit Remaining\b/i, "5h");
   const tip = (entry: QuotaRow, value: QuotaDay) => {
-    const name = entry.window.shortLabel ?? entry.window.name;
+    const name = cleanName(entry.window);
     if (value.value === null) return t("Nothing read that day");
     const share = Math.round(value.value);
     const lines = isLong(entry.window)
@@ -108,15 +112,24 @@ export function QuotaRows({
       lines.push(t("Reset at {{time}}", { time: time(value.resets[0]) }));
     return lines.filter(Boolean).join(" · ");
   };
-  // The first and last days, and evenly between them where they fit.
-  const labelEvery = Math.max(1, Math.ceil(count / Math.max(1, plot / 60)));
-  const ticks = [
-    ...Array.from({ length: count }, (_, column) => column).filter(
-      (column) =>
-        column % labelEvery === 0 && column <= count - 1 - labelEvery / 2,
-    ),
-    count - 1,
-  ];
+  const tickX = (column: number) =>
+    column === 0 ? 0 : column === count - 1 ? plot : column * slot + slot / 2;
+  // Keep edge labels and intermediate ticks with at least 52px clearance so dates never collide.
+  const ticks = (() => {
+    if (count <= 0) return [];
+    if (count === 1) return [0];
+    const kept = [0];
+    let lastX = tickX(0);
+    for (let column = 1; column < count - 1; column++) {
+      const x = tickX(column);
+      if (x - lastX >= 52 && plot - x >= 52) {
+        kept.push(column);
+        lastX = x;
+      }
+    }
+    kept.push(count - 1);
+    return kept;
+  })();
   if (!rows.length) return null;
   return (
     <div
@@ -161,7 +174,7 @@ export function QuotaRows({
                     </span>
                   )}
                   <span style={{ color: theme.secondary }}>
-                    {entry.window.shortLabel ?? entry.window.name}
+                    {cleanName(entry.window)}
                   </span>
                 </span>
               </span>
@@ -178,12 +191,14 @@ export function QuotaRows({
                 style={{
                   ...number,
                   fontSize: 12,
-                  fontWeight: 600,
+                  fontWeight: 500,
                   textAlign: "right",
                   color:
-                    used !== null && used >= 70
-                      ? levelFill(used, theme)
-                      : theme.text,
+                    used !== null
+                      ? theme.light
+                        ? "#5c5c60"
+                        : "#a6a6a6"
+                      : theme.secondary,
                 }}
               >
                 {used !== null ? quotaPercentLabel(used, display) : "—"}

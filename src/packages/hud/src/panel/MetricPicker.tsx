@@ -1,3 +1,7 @@
+import { useId } from "react";
+import { motion, useReducedMotionConfig } from "motion/react";
+import { SNAP_SPRING } from "@agent-hud/ui/lib/motion";
+import { SpringPill } from "@agent-hud/ui/MotionPrimitives";
 import { Button } from "@agent-hud/ui/components/button";
 import {
   Tooltip,
@@ -24,6 +28,8 @@ export function MetricPicker({
   availability: Record<Measure, ReturnType<typeof quotaMetricAvailability>>;
 }) {
   const t = useT();
+  const pickerId = useId();
+  const still = Boolean(useReducedMotionConfig());
   const colors = palette(useGround(light));
   return (
     <TooltipProvider delayDuration={300}>
@@ -36,42 +42,64 @@ export function MetricPicker({
         {measures.map(({ key, title, icon: Icon }) => {
           const status = availability[key];
           const hint = `${title} · ${status.hint}`;
+          const active = selected === key;
           return (
             <Tooltip key={key}>
               <TooltipTrigger asChild>
-                <span
+                <motion.span
                   title={hint}
                   tabIndex={status.selectable ? undefined : 0}
                   aria-label={status.selectable ? undefined : hint}
+                  whileHover={
+                    status.selectable && !still ? { scale: 1.08 } : undefined
+                  }
+                  whileTap={
+                    status.selectable && !still ? { scale: 0.92 } : undefined
+                  }
+                  transition={SNAP_SPRING}
                   style={{ display: "inline-flex" }}
                 >
                   <Button
                     variant="ghost"
                     size="icon-xs"
                     aria-label={title}
-                    aria-pressed={selected === key}
+                    aria-pressed={active}
                     disabled={!status.selectable}
                     onClick={() => choose(key)}
                     style={{
+                      position: "relative",
                       width: 20,
                       minWidth: 20,
                       height: 18,
                       minHeight: 18,
                       padding: 0,
                       borderRadius: 5,
-                      color: selected === key ? colors.text : colors.tertiary,
-                      background:
-                        selected === key ? colors.selected : "transparent",
+                      color: active ? colors.text : colors.tertiary,
+                      background: "transparent",
                       boxShadow: "none",
                     }}
                   >
+                    {active && (
+                      <SpringPill
+                        layoutId={`metric-pill-${pickerId}`}
+                        style={{
+                          borderRadius: 5,
+                          background: colors.selected,
+                        }}
+                      />
+                    )}
                     <Icon
-                      style={{ width: 10, height: 10 }}
+                      style={{
+                        position: "relative",
+                        zIndex: 1,
+                        width: 10,
+                        height: 10,
+                      }}
                       strokeWidth={key === "burn" ? 2.6 : 2}
                       fill={key === "burn" ? "currentColor" : "none"}
                     />
                   </Button>
-                </span>
+                </motion.span>
               </TooltipTrigger>
               <TooltipContent
                 side="top"

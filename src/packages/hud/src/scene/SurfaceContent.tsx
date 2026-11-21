@@ -1,14 +1,10 @@
 import type { ReactNode } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
+import { ScrollUnfurl } from "@agent-hud/ui/MotionPrimitives";
 import type { Approval, IslandEvent, Snapshot } from "@agent-hud/protocol";
 import { CompactAlertView } from "../alerts/CompactAlertView";
-import { horizontal, type HUDRect } from "../geometry";
-import {
-  HUD_METRICS,
-  type HUDConfig,
-  type HUDEdge,
-  type HUDVendor,
-} from "../model";
+import type { HUDRect } from "../geometry";
+import type { HUDConfig, HUDEdge, HUDVendor } from "../model";
 import { AgentPeek } from "./AgentPeek";
 
 export interface SurfaceContentProps {
@@ -134,42 +130,31 @@ export function SurfaceContent({
             scrollbarWidth: "none",
           }}
         >
-          <motion.div
-            key={
-              request || (event && !inUsagePanel)
-                ? "alert-stack"
-                : (focusedVendor?.key ?? "all")
-            }
-            // Slides in from the edge the HUD sits on.
-            initial={
-              reduceMotion
-                ? false
-                : {
-                    [horizontal(edge) ? "y" : "x"]:
-                      (edge === "top" || edge === "left" ? -1 : 1) *
-                      HUD_METRICS.entryDistance,
-                    opacity: 0,
-                  }
-            }
-            animate={{ x: 0, y: 0, opacity: 1 }}
-            transition={{
-              duration: 0.22,
-              delay: 0.12,
-              ease: [0.25, 0.46, 0.45, 0.94],
-            }}
-          >
-            <div
-              className="hud-panel-content"
-              style={{
-                paddingTop: surfacePadding.top,
-                paddingRight: surfacePadding.right,
-                paddingBottom: surfacePadding.bottom,
-                paddingLeft: surfacePadding.left,
-              }}
+          <AnimatePresence mode="wait" initial={false}>
+            <ScrollUnfurl
+              key={
+                request || (event && !inUsagePanel)
+                  ? "alert-stack"
+                  : (focusedVendor?.key ?? "all")
+              }
+              edge={edge}
+              duration={0.36}
+              delay={0}
+              reduced={reduceMotion}
             >
-              {children}
-            </div>
-          </motion.div>
+              <div
+                className="hud-panel-content"
+                style={{
+                  paddingTop: surfacePadding.top,
+                  paddingRight: surfacePadding.right,
+                  paddingBottom: surfacePadding.bottom,
+                  paddingLeft: surfacePadding.left,
+                }}
+              >
+                {children}
+              </div>
+            </ScrollUnfurl>
+          </AnimatePresence>
         </div>
       )}
     </div>

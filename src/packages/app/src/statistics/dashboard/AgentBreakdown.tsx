@@ -82,6 +82,8 @@ export function AgentBreakdown({
   return (
     <Panel
       area="agents"
+      variant="secondary"
+      motionIndex={3}
       pending={[pending]}
       theme={theme}
       style={{ gridTemplateRows: "auto 1fr", alignContent: "stretch" }}

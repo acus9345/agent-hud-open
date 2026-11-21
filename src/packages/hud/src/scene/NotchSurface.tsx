@@ -116,15 +116,25 @@ export function useNotchGeometry(
     };
     rim.set(rimBox(rimCore(origin, origin.flare), target));
     const tween = animate(0, 1, {
-      duration: HUD_METRICS.duration,
-      ease: HUD_METRICS.ease,
+      type: "spring",
+      stiffness: 330,
+      damping: 34,
+      mass: 0.78,
       onUpdate: (progress) => {
+        const clamped = Math.max(0, Math.min(1, progress));
         x.set(origin.x + (frame.x - origin.x) * progress);
         y.set(origin.y + (frame.y - origin.y) * progress);
-        width.set(origin.width + (frame.width - origin.width) * progress);
-        height.set(origin.height + (frame.height - origin.height) * progress);
-        shoulder.set(origin.flare + (flare - origin.flare) * progress);
-        corner.set(origin.radius + (radius - origin.radius) * progress);
+        width.set(
+          Math.max(1, origin.width + (frame.width - origin.width) * progress),
+        );
+        height.set(
+          Math.max(
+            1,
+            origin.height + (frame.height - origin.height) * progress,
+          ),
+        );
+        shoulder.set(origin.flare + (flare - origin.flare) * clamped);
+        corner.set(origin.radius + (radius - origin.radius) * clamped);
       },
       onComplete: () => rim.set(target),
     });

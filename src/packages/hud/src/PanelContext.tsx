@@ -132,8 +132,12 @@ export function usePanelQuery<T>(
     () => latest.get(base) as T | undefined,
   );
   const asked = useRef(0);
+  const retried = useRef("");
+  const [retryTick, setRetryTick] = useState(0);
   useEffect(() => {
     if (!enabled || !services) return;
+    let disposed = false;
+    let timer = 0;
     const order = ++asked.current;
     let promise = cache.get(key);
     if (!promise) {
@@ -147,6 +151,8 @@ export function usePanelQuery<T>(
     }
     promise.then(
       (value) => {
+        if (disposed) return;
+        retried.current = "";
         latest.delete(base);
         latest.set(base, value);
         while (latest.size > 32) latest.delete(latest.keys().next().value!);
@@ -155,7 +161,15 @@ export function usePanelQuery<T>(
           settled(current, { key, base, order, data: value as T, error: null }),
         );
       },
-      (error) =>
+      (error) => {
+        if (disposed) return;
+        if (retried.current !== key) {
+          retried.current = key;
+          timer = window.setTimeout(() => {
+            if (!disposed) setRetryTick((value) => value + 1);
+          }, 700);
+          return;
+        }
         setAnswer((current) =>
           settled(current, {
             key,
@@ -164,9 +178,14 @@ export function usePanelQuery<T>(
             data: null,
             error: String(error),
           }),
-        ),
+        );
+      },
     );
-  }, [key, base, enabled, services]);
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+    };
+  }, [key, base, enabled, services, retryTick]);
   return {
     ...shownAnswer(answer, key, base, last),
     available: Boolean(services),

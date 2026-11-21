@@ -6,6 +6,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
+import { MotionConfig } from "motion/react";
 import type { Snapshot } from "@agent-hud/protocol";
 import { PanelServicesProvider, type PanelServices } from "../PanelContext";
 import {
@@ -105,23 +106,25 @@ export function MeasuringCopy({
         paddingLeft: padding.left,
       }}
     >
-      <Redraw
-        version={shown}
-        draw={() => {
-          const drawn = (
-            <ListedSessionsContext.Provider value={shown.listed}>
-              {body(shown.snapshot)}
-            </ListedSessionsContext.Provider>
-          );
-          return shown.services ? (
-            <PanelServicesProvider value={shown.services}>
-              {drawn}
-            </PanelServicesProvider>
-          ) : (
-            drawn
-          );
-        }}
-      />
+      <MotionConfig reducedMotion="always">
+        <Redraw
+          version={shown}
+          draw={() => {
+            const drawn = (
+              <ListedSessionsContext.Provider value={shown.listed}>
+                {body(shown.snapshot)}
+              </ListedSessionsContext.Provider>
+            );
+            return shown.services ? (
+              <PanelServicesProvider value={shown.services}>
+                {drawn}
+              </PanelServicesProvider>
+            ) : (
+              drawn
+            );
+          }}
+        />
+      </MotionConfig>
     </div>
   );
 }

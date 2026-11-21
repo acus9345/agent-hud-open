@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { DashboardSection } from "@agent-hud/ui/DashboardMotion";
 import { vendorKey } from "@agent-hud/hud/model";
 import type {
   NativeMethod,
@@ -12,7 +13,12 @@ import {
   IndexingProgress,
   RefreshFailed,
 } from "./statistics/StatsParts";
-import { dimensionsLabel, freshKinds, themeFor } from "./statistics/StatsTheme";
+import {
+  dimensionsLabel,
+  freshKinds,
+  surfaceStyle,
+  themeFor,
+} from "./statistics/StatsTheme";
 import { useStatisticsEnd } from "./statistics/use-statistics-end";
 import { useProviderHighlight } from "./statistics/use-provider-highlight";
 import { quotaRows } from "./statistics/dashboard/QuotaRows";
@@ -86,6 +92,7 @@ export default function Statistics({
   const overview = useOverview({
     action,
     revision,
+    retryNonce: refresh,
     active,
     span,
     end,
@@ -220,9 +227,15 @@ export default function Statistics({
           pending={pending}
           theme={theme}
         />
-        <div
+        <DashboardSection
+          index={2}
+          hoverLift={false}
           className={`stats-panel stats-area-trend stats-card ${trendLook.className}`}
-          style={trendLook.style}
+          style={{
+            ...surfaceStyle(theme, "primary"),
+            padding: "12px 2px 10px",
+            ...trendLook.style,
+          }}
         >
           <TokenUsage
             data={data}
@@ -235,7 +248,7 @@ export default function Statistics({
             light={light}
             chartHeight={196}
           />
-        </div>
+        </DashboardSection>
         <AgentBreakdown
           data={data}
           agent={single}
@@ -265,7 +278,7 @@ export default function Statistics({
           theme={theme}
           light={light}
         />
-        <div className="stats-area-cards">
+        <DashboardSection as="div" index={5} className="stats-area-cards">
           <AgentCards
             data={data}
             hiddenAgentCards={hiddenAgentCards}
@@ -281,7 +294,7 @@ export default function Statistics({
             names={names}
             pending={pending}
           />
-        </div>
+        </DashboardSection>
       </div>
     </section>
   );

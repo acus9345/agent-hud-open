@@ -158,14 +158,16 @@ impl AgentHudCore {
             let mut partial = false;
             let unavailable = if shared {
                 Some(tr!(
-                    "This Mac's usage cannot be told apart between this provider's accounts"
+                    "This device's usage cannot be told apart between this provider's accounts"
                 ))
             } else if let Some(view) = &self.meters.view {
                 let (spent, oldest) = view.spent(sources, since, now, keep);
                 if spent.tokens == 0 && !models.is_empty() {
                     Some(tr!("Every model it used is hidden by the filter"))
                 } else if spent.tokens == 0 {
-                    Some(tr!("No usage was recorded on this Mac in the last 30 days"))
+                    Some(tr!(
+                        "No usage was recorded on this device in the last 30 days"
+                    ))
                 } else {
                     // Partial while its logs are still read, when the ledger
                     // begins inside the 30 days, or with calls left unpriced

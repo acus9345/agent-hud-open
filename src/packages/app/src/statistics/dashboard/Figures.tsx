@@ -76,6 +76,8 @@ export function Figures({
   return (
     <div className="stats-figures">
       <Figure
+        variant="primary"
+        index={0}
         loading={!data}
         label={t("Tokens")}
         value={tokens === null ? "—" : compact(Math.round(tokensNow))}
@@ -90,6 +92,8 @@ export function Figures({
         theme={theme}
       />
       <Figure
+        variant="primary"
+        index={1}
         loading={!data}
         label={t("Worth at API prices")}
         value={cost === null ? "—" : `${money(costNow)}${unpriced ? "+" : ""}`}
@@ -106,6 +110,8 @@ export function Figures({
         theme={theme}
       />
       <Figure
+        variant="secondary"
+        index={2}
         loading={!data}
         label={t("Subscriptions returned")}
         value={
@@ -139,6 +145,8 @@ export function Figures({
         theme={theme}
       />
       <Figure
+        variant="secondary"
+        index={3}
         loading={!data}
         label={t("Sessions")}
         value={
@@ -158,6 +166,8 @@ export function Figures({
         theme={theme}
       />
       <Figure
+        variant="secondary"
+        index={4}
         loading={!data}
         label={t("Cache hit rate")}
         value={hit === null ? "—" : percent1(hitNow * 100)}

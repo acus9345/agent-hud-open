@@ -5,7 +5,12 @@ import type {
   Snapshot,
 } from "@agent-hud/protocol";
 import { useFormat, useT } from "@agent-hud/ui/format-context";
-import { listCost, listPrice, type Translate } from "@agent-hud/ui/format";
+import {
+  cleanDeviceCopy,
+  listCost,
+  listPrice,
+  type Translate,
+} from "@agent-hud/ui/format";
 import { usePanelQuery } from "../PanelContext";
 import { useGround } from "../ground";
 import { palette, tabular, type Logo } from "./theme";
@@ -132,11 +137,13 @@ export function PlanValueSection({
             >
               {account.plan
                 ? t("{{price}}/mo", { price: usd(account.plan.monthlyUSD) })
-                : t("No monthly list price")}
+                : t("No fixed price")}
               {" · "}
               {worth
                 ? t("API value {{worth}}", { worth })
-                : account.unavailable}
+                : account.unavailable
+                  ? cleanDeviceCopy(account.unavailable)
+                  : null}
             </div>
           </div>
         );

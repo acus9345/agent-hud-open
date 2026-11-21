@@ -61,6 +61,7 @@ export {
 export {
   budgetText,
   byReset,
+  cleanDeviceCopy,
   outlookBasisText,
   outlookText,
   quotaDisplayLabel,

@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import {
+  EXIT_EASE,
+  SCROLL_EASE,
+  SCROLL_SPRING,
+  scrollEdgeGeometry,
+} from "@agent-hud/ui/lib/motion";
 import { horizontal, type HUDRect } from "../geometry";
 import { HUD_METRICS } from "../model";
 import type { useNotchGeometry } from "./NotchSurface";
@@ -72,16 +78,22 @@ export function HUDExpandedSurface({
   }, [atNotchRow, settle]);
   const inNotchRow = atNotchRow && rowSettled;
   const rowLight = inNotchRow ? false : light;
-  const transition = {
-    duration: reduceMotion || dragging ? 0 : 0.4,
-    ease: HUD_METRICS.ease,
-  };
+  const scrollGeo = scrollEdgeGeometry(edge);
+  const instant = reduceMotion || dragging;
+  const transition = instant
+    ? { duration: 0 }
+    : {
+        ...SCROLL_SPRING,
+        opacity: { duration: 0.24, ease: SCROLL_EASE },
+        clipPath: { duration: 0.36, ease: SCROLL_EASE },
+      };
   const from = {
     left: flared && horizontal(edge) ? strip.x - 8 : strip.x,
     top: strip.y,
     width: flared && horizontal(edge) ? strip.width + 16 : strip.width,
     height: strip.height,
     opacity: 0,
+    clipPath: scrollGeo.clipClosed,
   };
 
   // What opens beside a Simple dock is cut where the dock is: it grows from behind the dock, the dock keeps its own
@@ -118,9 +130,10 @@ export function HUDExpandedSurface({
                         top: frame.y,
                         width: frame.width,
                         height: frame.height,
-                        scaleX: simplePeek && !horizontal(edge) ? 0.2 : 0.86,
-                        scaleY: simplePeek && !horizontal(edge) ? 1 : 0.86,
+                        scaleX: simplePeek && !horizontal(edge) ? 0.2 : 0.9,
+                        scaleY: simplePeek && !horizontal(edge) ? 1 : 0.9,
                         opacity: 0,
+                        clipPath: scrollGeo.clipClosed,
                       }
                     : from
             }
@@ -135,6 +148,7 @@ export function HUDExpandedSurface({
                     scaleX: 1,
                     scaleY: 1,
                     opacity: 1,
+                    clipPath: scrollGeo.clipOpen,
                   }
             }
             variants={{
@@ -142,8 +156,17 @@ export function HUDExpandedSurface({
                 moving
                   ? { opacity: 0, transition: { duration: 0 } }
                   : reduceMotion || detached
-                    ? { opacity: 0, scaleX: 0.86, scaleY: 0.86 }
-                    : from,
+                    ? {
+                        opacity: 0,
+                        scaleX: 0.9,
+                        scaleY: 0.9,
+                        clipPath: scrollGeo.clipClosed,
+                        transition: { duration: 0.2, ease: EXIT_EASE },
+                      }
+                    : {
+                        ...from,
+                        transition: { duration: 0.22, ease: EXIT_EASE },
+                      },
             }}
             exit="gone"
             transition={transition}
@@ -174,7 +197,7 @@ export function HUDExpandedSurface({
               overflow: config.mode === "notch" ? "visible" : "hidden",
               borderRadius: detached
                 ? Math.min(
-                    peek ? (simplePeek ? targetSize.height / 2 : 14) : 22,
+                    peek ? (simplePeek ? targetSize.height / 2 : 14) : 18,
                     targetSize.height / 2,
                   )
                 : config.mode === "simple"

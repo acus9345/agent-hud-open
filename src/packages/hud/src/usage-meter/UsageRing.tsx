@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { HUD_METRICS } from "../model";
+import { mutedMeterColor } from "../tokens";
 import {
   arcPath,
   isWholeRing,
@@ -46,7 +47,7 @@ export function UsageRing({
     ...arc,
     percent: itemShare(items[i].percent),
     opacity: 1,
-    color: items[i].color,
+    color: mutedMeterColor(items[i].color),
   }));
   const frame = useTween(target, reduceMotion);
   const center = spec.size / 2;

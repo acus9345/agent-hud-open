@@ -4,7 +4,8 @@ import {
   CircleArrowDown,
   Settings,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, useReducedMotionConfig } from "motion/react";
+import { SNAP_SPRING } from "@agent-hud/ui/lib/motion";
 import { Button } from "@agent-hud/ui/components/button";
 import { translator, type Language } from "@agent-hud/ui/format";
 import type { HUDUpdateNotice } from "../model";
@@ -31,15 +32,18 @@ export function PanelFooter({
   onUpdate?: () => void;
 }) {
   const t = translator(language);
+  const still = Boolean(useReducedMotionConfig());
   const footerButton = (color: string): CSSProperties => ({
     width: 28,
     height: 28,
     minHeight: 28,
     padding: 0,
-    borderRadius: 0,
+    borderRadius: 7,
     color,
     background: "transparent",
   });
+  const pillHover = still ? undefined : { scale: 1.08 };
+  const pillTap = still ? undefined : { scale: 0.92 };
   return (
     <footer
       data-hud-footer
@@ -54,26 +58,35 @@ export function PanelFooter({
         color: colors.secondary,
       }}
     >
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t("Settings")}
-        title={t("Settings")}
-        disabled={!onConfigure}
-        onClick={onConfigure}
-        style={footerButton(colors.secondary)}
+      <motion.span
+        whileHover={onConfigure ? pillHover : undefined}
+        whileTap={onConfigure ? pillTap : undefined}
+        transition={SNAP_SPRING}
+        style={{ display: "inline-flex" }}
       >
-        <Settings style={{ width: 14, height: 14 }} strokeWidth={1.7} />
-      </Button>
-      <div style={{ display: "flex", alignItems: "center" }}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t("Settings")}
+          title={t("Settings")}
+          disabled={!onConfigure}
+          onClick={onConfigure}
+          style={footerButton(colors.secondary)}
+        >
+          <Settings style={{ width: 14, height: 14 }} strokeWidth={1.7} />
+        </Button>
+      </motion.span>
+      <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
         {update && (
           // It arrives as the HUD's other changes do: it grows in, or with
           // reduced motion only fades in.
           <motion.span
             key={update.version}
-            initial={{ opacity: 0, scale: 0.6 }}
+            initial={still ? false : { opacity: 0, scale: 0.6 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
+            whileHover={onUpdate ? pillHover : undefined}
+            whileTap={onUpdate ? pillTap : undefined}
+            transition={SNAP_SPRING}
             style={{ display: "inline-flex" }}
           >
             <Button
@@ -92,20 +105,27 @@ export function PanelFooter({
             </Button>
           </motion.span>
         )}
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t("Usage statistics")}
-          title={t("Usage statistics")}
-          disabled={!onStats}
-          onClick={onStats}
-          style={footerButton(colors.secondary)}
+        <motion.span
+          whileHover={onStats ? pillHover : undefined}
+          whileTap={onStats ? pillTap : undefined}
+          transition={SNAP_SPRING}
+          style={{ display: "inline-flex" }}
         >
-          <ChartNoAxesColumnIncreasing
-            style={{ width: 14, height: 14 }}
-            strokeWidth={1.7}
-          />
-        </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t("Usage statistics")}
+            title={t("Usage statistics")}
+            disabled={!onStats}
+            onClick={onStats}
+            style={footerButton(colors.secondary)}
+          >
+            <ChartNoAxesColumnIncreasing
+              style={{ width: 14, height: 14 }}
+              strokeWidth={1.7}
+            />
+          </Button>
+        </motion.span>
       </div>
     </footer>
   );

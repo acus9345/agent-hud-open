@@ -1,4 +1,10 @@
 import type { CSSProperties } from "react";
+import { motion, useReducedMotionConfig } from "motion/react";
+import {
+  SCROLL_EASE,
+  SNAP_SPRING,
+  staggerDelay,
+} from "@agent-hud/ui/lib/motion";
 import type {
   PanelLayout,
   SessionsResponse,
@@ -99,6 +105,8 @@ export function SourceSessions({
     sessions.length,
     own,
   );
+  const still = Boolean(useReducedMotionConfig());
+  const interactive = Boolean(onStats || listed);
   const status = week ? t("Last 7 days") : t("Last 24 hours");
   return (
     <section
@@ -117,7 +125,7 @@ export function SourceSessions({
       <button
         title={t("Show sessions")}
         onClick={() => openSessions()}
-        disabled={!onStats && !listed}
+        disabled={!interactive}
         style={{
           ...noButtonChrome,
           display: "flex",
@@ -147,11 +155,11 @@ export function SourceSessions({
           {status}
         </span>
       </button>
-      {sessions.slice(0, limit).map((session) => (
+      {sessions.slice(0, limit).map((session, index) => (
         // The whole row opens the session's page, as its heading opens the list.
-        <button
+        <motion.button
           key={session.id}
-          disabled={!onStats && !listed}
+          disabled={!interactive}
           title={`${session.title}\n${t("Show session details")}`}
           onClick={() =>
             listed
@@ -160,15 +168,40 @@ export function SourceSessions({
                 ? services.selectSession(session)
                 : onStats?.()
           }
+          initial={still ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={
+            still
+              ? { duration: 0 }
+              : {
+                  duration: 0.28,
+                  delay: staggerDelay(index, 0.05, 0.028),
+                  ease: SCROLL_EASE,
+                }
+          }
+          whileHover={
+            interactive && !still
+              ? {
+                  x: 2,
+                  backgroundColor: colors.selected,
+                  transition: SNAP_SPRING,
+                }
+              : undefined
+          }
+          whileTap={interactive && !still ? { scale: 0.99 } : undefined}
           style={{
             ...noButtonChrome,
             display: "flex",
             alignItems: "center",
             gap: 8,
-            width: "100%",
+            width: "calc(100% + 10px)",
+            marginInline: -5,
+            padding: "3px 5px",
+            borderRadius: 6,
             color: colors.secondary,
             lineHeight: "15px",
             minHeight: 15,
+            cursor: interactive ? "pointer" : undefined,
           }}
         >
           <span
@@ -195,7 +228,7 @@ export function SourceSessions({
           >
             {tokensShort(session.tokens)} tok
           </span>
-        </button>
+        </motion.button>
       ))}
       {!sessions.length && (
         <span style={{ color: colors.secondary, lineHeight: "15px" }}>

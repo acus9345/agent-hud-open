@@ -1,4 +1,5 @@
 import { HUD_METRICS } from "../model";
+import { mutedMeterColor } from "../tokens";
 import { itemShare, type RingItem } from "./mark-windows";
 
 /** Horizontal bars for `items`, the first on top, stacked in the middle of a
@@ -35,31 +36,34 @@ export function UsageBars({
         flexShrink: 0,
       }}
     >
-      {items.map((item, i) => (
-        <span
-          key={i}
-          style={{
-            display: "block",
-            height: thickness,
-            borderRadius: thickness / 2,
-            background: track,
-            overflow: "hidden",
-          }}
-        >
+      {items.map((item, i) => {
+        const fill = mutedMeterColor(item.color);
+        return (
           <span
+            key={i}
             style={{
               display: "block",
-              height: "100%",
-              width: `${itemShare(item.percent)}%`,
-              borderRadius: "inherit",
-              background: item.color,
-              transition: reduceMotion
-                ? undefined
-                : `width ${HUD_METRICS.duration}s cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`,
+              height: thickness,
+              borderRadius: thickness / 2,
+              background: track,
+              overflow: "hidden",
             }}
-          />
-        </span>
-      ))}
+          >
+            <span
+              style={{
+                display: "block",
+                height: "100%",
+                width: `${itemShare(item.percent)}%`,
+                borderRadius: "inherit",
+                background: fill,
+                transition: reduceMotion
+                  ? undefined
+                  : `width ${HUD_METRICS.duration}s cubic-bezier(${x1}, ${y1}, ${x2}, ${y2})`,
+              }}
+            />
+          </span>
+        );
+      })}
     </span>
   );
 }

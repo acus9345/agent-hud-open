@@ -1,32 +1,41 @@
-import { memo, type ReactNode } from "react";
+import { memo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Card } from "@agent-hud/ui/components/card";
+import { CollapsibleReveal } from "@agent-hud/ui/DashboardMotion";
 import { HUDArtwork as HUDLogo } from "@agent-hud/hud/HUDArtwork";
 import { vendorKey } from "@agent-hud/hud/model";
 import type {
   BillingAccount,
   Quota,
   StatisticsProvider,
-  StatisticsTokenKind,
 } from "@agent-hud/protocol";
 import {
   agentAccent,
-  card,
   compact,
   kindLabel,
   number,
+  plain,
   row,
+  surfaceStyle,
   truncate,
   useAnimatedNumber,
   type StatsTheme,
 } from "./StatsTheme";
 import { costHelp, costText } from "./cost-text";
 import { ModelList } from "./ModelList";
-import { Tween } from "./motion";
 import { Sparkline } from "./Sparkline";
 import { QuotaRows, type QuotaRow } from "./dashboard/QuotaRows";
 import { usePendingLook, type Pending } from "./dashboard/pending";
 import { moneyAmount } from "@agent-hud/ui/format";
 import { useFormat, useT } from "@agent-hud/ui/format-context";
+
+const ALL_KINDS = [
+  "input",
+  "output",
+  "reasoning",
+  "cacheWrite",
+  "cacheRead",
+] as const;
 
 export const ProviderCard = memo(function ProviderCard({
   provider,
@@ -46,35 +55,29 @@ export const ProviderCard = memo(function ProviderCard({
   theme: StatsTheme;
   highlighted?: boolean;
   billing?: BillingAccount[];
-  /** This agent's quota windows, day by day. */
   quota?: { rows: QuotaRow[]; live: Map<string, Quota> };
-  /** The answers it waits for when a filter changes. */
   pending?: (Pending | null)[];
 }) {
   const t = useT();
   const { language } = useFormat();
+  const [expanded, setExpanded] = useState(false);
   const look = usePendingLook(...(pending ?? []));
   const animatedTokens = useAnimatedNumber(provider.selectedTokens);
-  const shareTarget = total
-    ? Math.round((provider.selectedTokens / total) * 100)
-    : 0;
-  const animatedShare = useAnimatedNumber(shareTarget);
+  const animatedShare = useAnimatedNumber(
+    total ? Math.round((provider.selectedTokens / total) * 100) : 0,
+  );
   const providerBilling = billing.filter(
     (b) => vendorKey(b.vendor) === vendorKey(provider.id),
   );
-  // Where the price went, from Core (Open's AgentCards.moneyNote): reading
-  // context back from the cache, and sending it again after the cache lapsed.
   const moneyNote = [
-    provider.cacheReadShare != null
-      ? t("Cache reads {{share}}% of cost", {
-          share: Math.round(provider.cacheReadShare * 100),
-        })
-      : null,
-    provider.recachedCost != null
-      ? t("Cache rewrites ≈{{cost}}", {
-          cost: moneyAmount(provider.recachedCost, "USD", language),
-        })
-      : null,
+    provider.cacheReadShare != null &&
+      t("Cache reads {{share}}% of cost", {
+        share: Math.round(provider.cacheReadShare * 100),
+      }),
+    provider.recachedCost != null &&
+      t("Cache rewrites ≈{{cost}}", {
+        cost: moneyAmount(provider.recachedCost, "USD", language),
+      }),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -86,51 +89,52 @@ export const ProviderCard = memo(function ProviderCard({
       language,
     );
   const accent = agentAccent(provider.id) ?? theme.secondary;
-  const cells: [string, ReactNode][] = [
-    "input",
-    "output",
-    "reasoning",
-    "cacheWrite",
-    "cacheRead",
-  ].map((kind) => [
-    kindLabel(kind as StatisticsTokenKind, language),
-    <Tween
-      key={kind}
-      value={provider.tokens[kind as StatisticsTokenKind]}
-      format={(value) => compact(Math.round(value))}
-    />,
-  ]);
-  cells.push([
-    t("Cost"),
-    <span title={costHelp(provider.cost, language)}>
-      {costText(provider.cost, language)}
-    </span>,
-  ]);
+  const caption = { fontSize: 10.5, color: theme.tertiary };
+  const statValue = { ...number, fontWeight: 600, color: theme.text };
+  const badgeStyle = {
+    ...number,
+    padding: "2px 7px",
+    borderRadius: 100,
+    background: theme.segment,
+    color: theme.secondary,
+    fontSize: 10.5,
+  };
+  const summaryCells: [string, string][] = [
+    [kindLabel("input", language), compact(Math.round(provider.tokens.input))],
+    [
+      kindLabel("output", language),
+      compact(Math.round(provider.tokens.output)),
+    ],
+    [
+      t("Cache"),
+      compact(
+        Math.round(provider.tokens.cacheRead + provider.tokens.cacheWrite),
+      ),
+    ],
+  ];
   return (
     <Card
       id={`agent-${vendorKey(provider.id)}`}
       className={`statistics-agent-card stats-reveal ${look.className}`}
       style={{
-        ...card(theme),
+        ...surfaceStyle(theme, "secondary"),
         ...look.style,
-        ...(highlighted
-          ? {
-              border: "1.5px solid #30d158",
-              boxShadow: "0 0 0 2px rgba(48, 209, 88, 0.2)",
-              transition: "border-color 220ms ease, box-shadow 220ms ease",
-            }
-          : {
-              transition: "border-color 220ms ease, box-shadow 220ms ease",
-            }),
+        padding: "16px 18px",
+        gap: 14,
+        transition: "border-color 220ms ease, box-shadow 220ms ease",
+        ...(highlighted && {
+          border: "1.5px solid #5b7a45",
+          boxShadow: "0 0 0 2px rgba(91, 122, 69, 0.22)",
+        }),
       }}
     >
-      <div style={{ ...row, gap: 7 }}>
+      <div style={{ ...row, gap: 8 }}>
         <span
           style={{
             width: 26,
             height: 26,
-            borderRadius: 6,
-            background: `${accent}2e`,
+            borderRadius: 7,
+            background: `${accent}28`,
             display: "inline-grid",
             placeItems: "center",
             flexShrink: 0,
@@ -138,149 +142,164 @@ export const ProviderCard = memo(function ProviderCard({
         >
           <HUDLogo source={provider.id} size={14} light={theme.light} />
         </span>
-        <strong style={{ ...truncate, fontSize: 13, fontWeight: 600 }}>
+        <strong style={{ ...truncate, fontSize: 13.5, fontWeight: 600 }}>
           {provider.name}
         </strong>
+        {balance && <span style={badgeStyle}>{balance}</span>}
         <span
           title={t(
             "Share of the selected range, agents, models and token kinds",
           )}
-          style={{
-            marginLeft: "auto",
-            padding: "2px 7px",
-            borderRadius: 100,
-            background: theme.segment,
-            color: theme.secondary,
-            fontSize: 11,
-            ...number,
-          }}
+          style={{ ...badgeStyle, marginLeft: "auto", fontSize: 11 }}
         >
           {total ? `${animatedShare}%` : "—"}
         </span>
       </div>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
-        <div style={{ flexShrink: 0 }}>
-          <div
-            style={{
-              fontSize: 24,
-              lineHeight: 1.14,
-              fontWeight: 600,
-              letterSpacing: "-.45px",
-              ...number,
-            }}
-          >
-            {compact(animatedTokens)}
-          </div>
-          <div style={{ color: theme.secondary, fontSize: 11, marginTop: 2 }}>
-            {label}
-          </div>
-        </div>
-        <div
-          style={{
-            marginLeft: "auto",
-            width: `${100 / perRow}%`,
-            maxWidth: 330 / perRow,
-          }}
-        >
-          <Sparkline values={provider.series} color={accent} />
-        </div>
-      </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${6 / perRow},minmax(0,1fr))`,
-          columnGap: perRow >= 3 ? 10 : 14,
-          rowGap: 6,
-        }}
-      >
-        {cells.map(([name, value]) => (
-          <div
-            key={name}
-            style={{
-              ...row,
-              gap: 4,
-              justifyContent: "space-between",
-            }}
-          >
-            <span
-              style={{
-                fontSize: 11,
-                color: theme.secondary,
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-              }}
-            >
-              {name}
-            </span>
-            <strong
-              style={{
-                ...number,
-                fontSize: perRow >= 3 ? 12 : 13,
-                fontWeight: 600,
-              }}
-            >
-              {value}
-            </strong>
-          </div>
-        ))}
-      </div>
-      {(moneyNote !== "" || providerBilling.length > 0) && (
-        <div
-          style={{
-            ...row,
-            justifyContent: "space-between",
-            fontSize: 10,
-            color: theme.secondary,
-            marginTop: -2,
-          }}
-        >
-          <span>{moneyNote}</span>
-          {providerBilling.length > 0 && (
-            <span style={number}>
-              {providerBilling[0].currency === "credits"
-                ? t("Available credits {{amount}}", { amount: balance })
-                : t("API balance {{amount}}", { amount: balance })}
-            </span>
-          )}
-        </div>
-      )}
+
       <div
         style={{
           display: "flex",
-          flexDirection: perRow === 1 ? "row" : "column",
-          gap: perRow === 1 ? 16 : 10,
-          minWidth: 0,
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          gap: 12,
         }}
       >
-        <ModelList
-          models={provider.models}
-          total={provider.selectedTokens}
-          theme={theme}
-        />
-        {quota && quota.rows.length > 0 && (
-          <>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 16 }}>
+          <div>
             <div
               style={{
-                background: theme.divider,
-                width: perRow === 1 ? 1 : "100%",
-                height: perRow === 1 ? "auto" : 1,
+                fontSize: 24,
+                lineHeight: 1.12,
+                fontWeight: 600,
+                letterSpacing: "-.45px",
+                ...number,
               }}
-            />
-            <div style={{ display: "grid", gap: 4, minWidth: 0, flex: 1 }}>
-              <span style={{ fontSize: 11, color: theme.secondary }}>
-                {t("Quota by day")}
-              </span>
-              <QuotaRows
-                rows={quota.rows}
-                live={quota.live}
-                label={perRow >= 3 ? 64 : 84}
-                vendors={null}
-                theme={theme}
-                light={theme.light}
-              />
+            >
+              {compact(animatedTokens)}
             </div>
-          </>
-        )}
+            <div style={{ color: theme.secondary, fontSize: 11, marginTop: 2 }}>
+              {label}
+            </div>
+          </div>
+          <div title={costHelp(provider.cost, language)}>
+            <div style={{ ...statValue, fontSize: 15, lineHeight: 1.2 }}>
+              {costText(provider.cost, language)}
+            </div>
+            <div style={{ ...caption, marginTop: 2 }}>{t("Cost")}</div>
+          </div>
+        </div>
+        <div style={{ width: "36%", maxWidth: 112, minWidth: 68 }}>
+          <Sparkline values={provider.series} color={accent} />
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+          gap: 8,
+          padding: "8px 10px",
+          borderRadius: 10,
+          background: theme.light
+            ? "rgba(0,0,0,0.03)"
+            : "rgba(255,255,255,0.028)",
+          border: `1px solid ${theme.divider}`,
+        }}
+      >
+        {summaryCells.map(([name, value]) => (
+          <div key={name} style={{ display: "grid", gap: 2, minWidth: 0 }}>
+            <span style={caption}>{name}</span>
+            <strong style={{ ...statValue, fontSize: 12.5 }}>{value}</strong>
+          </div>
+        ))}
+      </div>
+
+      <ModelList
+        models={provider.models}
+        total={provider.selectedTokens}
+        theme={theme}
+      />
+
+      {quota && quota.rows.length > 0 && (
+        <div
+          style={{
+            display: "grid",
+            gap: 6,
+            minWidth: 0,
+            paddingTop: 10,
+            borderTop: `1px solid ${theme.divider}`,
+          }}
+        >
+          <span
+            style={{ fontSize: 11, fontWeight: 500, color: theme.tertiary }}
+          >
+            {t("Quota by day")}
+          </span>
+          <QuotaRows
+            rows={quota.rows}
+            live={quota.live}
+            label={perRow >= 3 ? 92 : 108}
+            vendors={null}
+            theme={theme}
+            light={theme.light}
+          />
+        </div>
+      )}
+
+      <div style={{ display: "grid", gap: 8 }}>
+        <button
+          type="button"
+          onClick={() => setExpanded((open) => !open)}
+          aria-expanded={expanded}
+          style={{
+            ...plain,
+            ...row,
+            gap: 5,
+            fontSize: 11,
+            color: theme.tertiary,
+            justifySelf: "start",
+          }}
+        >
+          <ChevronDown
+            size={11}
+            style={{
+              transform: expanded ? "rotate(180deg)" : "none",
+              transition: "transform 160ms ease",
+            }}
+          />
+          <span>{t("Details")}</span>
+        </button>
+        <CollapsibleReveal open={expanded}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              columnGap: 14,
+              rowGap: 5,
+              paddingTop: 8,
+              borderTop: `1px solid ${theme.divider}`,
+            }}
+          >
+            {ALL_KINDS.map((kind) => (
+              <div
+                key={kind}
+                style={{ ...row, justifyContent: "space-between", gap: 6 }}
+              >
+                <span style={{ fontSize: 11, color: theme.secondary }}>
+                  {kindLabel(kind, language)}
+                </span>
+                <strong style={{ ...statValue, fontSize: 11.5 }}>
+                  {compact(Math.round(provider.tokens[kind]))}
+                </strong>
+              </div>
+            ))}
+            {moneyNote && (
+              <span style={{ ...caption, gridColumn: "1 / -1", marginTop: 3 }}>
+                {moneyNote}
+              </span>
+            )}
+          </div>
+        </CollapsibleReveal>
       </div>
     </Card>
   );

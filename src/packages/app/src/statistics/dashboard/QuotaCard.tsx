@@ -2,7 +2,7 @@ import { HUDArtwork as HUDLogo } from "@agent-hud/hud/HUDArtwork";
 import { vendorKey } from "@agent-hud/hud/model";
 import type { Quota, StatisticsProvider } from "@agent-hud/protocol";
 import { useT } from "@agent-hud/ui/format-context";
-import { card, row, truncate, type StatsTheme } from "../StatsTheme";
+import { row, surfaceStyle, truncate, type StatsTheme } from "../StatsTheme";
 import { usePendingLook, type Pending } from "./pending";
 import { QuotaRows, type QuotaRow } from "./QuotaRows";
 
@@ -48,12 +48,12 @@ export function QuotaCard({
     <div
       className={`stats-reveal ${look.className}`}
       style={{
-        ...card(theme),
+        ...surfaceStyle(theme, "secondary"),
         ...look.style,
         display: "grid",
         alignContent: "start",
         gap: 12,
-        padding: "14px 16px",
+        padding: "16px 18px",
       }}
     >
       <div style={{ ...row, gap: 8 }}>
@@ -63,7 +63,7 @@ export function QuotaCard({
         </strong>
       </div>
       <span style={{ fontSize: 11, color: theme.secondary }}>
-        {t("No tokens recorded on this Mac, only its quota readings")}
+        {t("No tokens recorded on this device, only its quota readings")}
       </span>
       <div style={{ display: "grid", gap: 4 }}>
         <span style={{ fontSize: 11, color: theme.secondary }}>
@@ -72,7 +72,7 @@ export function QuotaCard({
         <QuotaRows
           rows={rows}
           live={live}
-          label={64}
+          label={92}
           vendors={null}
           theme={theme}
           light={light}

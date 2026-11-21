@@ -45,6 +45,8 @@ export function ActivityCard({
   return (
     <Panel
       area="heatmap"
+      variant="plain"
+      motionIndex={1}
       pending={[view === "days" ? pending.year : pending.range]}
       theme={theme}
       title={t("When you use it")}

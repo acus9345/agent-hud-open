@@ -123,7 +123,9 @@ export function HUDMarkStrip({
                   // open; what opens is cut where the dock is.
                   background: fill,
                   border: 0,
-                  boxShadow: `inset 0 0 0 1px ${outline}`,
+                  boxShadow: light
+                    ? `inset 0 0 0 1px ${outline}`
+                    : `0 0 0 1px rgba(0,0,0,0.65), inset 0 0 0 1px ${outline}, inset 0 1px 0 rgba(255,255,255,0.09)`,
                   backdropFilter: undefined,
                   ...restingDockStyle(rest),
                 }

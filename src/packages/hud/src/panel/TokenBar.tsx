@@ -14,6 +14,7 @@ export function TokenBar({
   fill,
   light,
   transition,
+  index = 0,
 }: {
   /** Its share of the chart's height, as a percentage. */
   height: string;
@@ -29,13 +30,17 @@ export function TokenBar({
   fill: string;
   light: boolean;
   transition: Transition;
+  index?: number;
 }) {
+  const barTransition = still
+    ? transition
+    : { ...transition, delay: Math.min(0.18, index * 0.006) };
   return (
     <motion.div
       initial={still ? false : { height: "0%" }}
       animate={still ? undefined : { height }}
       exit={still ? undefined : { height: "0%" }}
-      transition={transition}
+      transition={barTransition}
       style={{
         height: still ? height : undefined,
         width: "100%",

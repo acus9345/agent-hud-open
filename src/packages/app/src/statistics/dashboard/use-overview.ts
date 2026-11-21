@@ -32,6 +32,7 @@ type Action = (
 export function useOverview({
   action,
   revision,
+  retryNonce = 0,
   active,
   span,
   end,
@@ -46,6 +47,7 @@ export function useOverview({
 }: {
   action: Action;
   revision: number;
+  retryNonce?: number;
   active: boolean;
   span: Span;
   end: number;
@@ -68,13 +70,15 @@ export function useOverview({
     method: NativeMethod,
     params?: Record<string, unknown>,
   ) => {
-    const response = (await action(method, params)) as StatisticsResponse;
-    if (response.dataRevision < revision)
-      throw new Error(
-        "Statistics are catching up with the current ledger. Try refreshing again.",
-      );
+    let response = (await action(method, params)) as StatisticsResponse;
+    for (const delayMs of [350, 700]) {
+      if (response.dataRevision >= revision) break;
+      await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+      response = (await action(method, params)) as StatisticsResponse;
+    }
     return response;
   };
+  const refreshSignal = `${revision}|${retryNonce}`;
   const query: StatisticsQuery = useMemo(
     () => ({
       from: new Date(span.from).toISOString(),
@@ -94,7 +98,7 @@ export function useOverview({
     "statistics",
     query,
     active,
-    revision,
+    refreshSignal,
     `${rangeKey}|${filters}`,
   );
   const yearQuery: StatisticsQuery = useMemo(() => {
@@ -113,7 +117,7 @@ export function useOverview({
     "statistics",
     yearQuery,
     active,
-    revision,
+    refreshSignal,
     JSON.stringify({ kinds, timeZone }),
   );
   const plans = useCoreQuery<PlanValueResponse>(
@@ -121,7 +125,7 @@ export function useOverview({
     "plan_value",
     { hiddenModels: [] },
     active,
-    `${revision}|${accounts}`,
+    `${refreshSignal}|${accounts}`,
   );
   const quota = useCoreQuery<QuotaHistoryResponse>(
     action,
@@ -131,7 +135,7 @@ export function useOverview({
       to: new Date(quotaSpan.to).toISOString(),
     },
     active,
-    undefined,
+    refreshSignal,
     rangeKey,
   );
   // Each answer a filter change waits for, and how long the last one took.

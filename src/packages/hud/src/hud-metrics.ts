@@ -1,9 +1,9 @@
 /** The HUD's fixed measures: its motion, the notch and card shapes, and the
  * sizes of the dock, its cards and its alerts. */
 export const HUD_METRICS = {
-  duration: 0.4,
-  ease: [0.2, 0.8, 0.2, 1] as [number, number, number, number],
-  entryDistance: 5,
+  duration: 0.42,
+  ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
+  entryDistance: 12,
   collapsedFlare: 8,
   expandedFlare: 16,
   notchRadius: 12,

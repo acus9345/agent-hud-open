@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { motion, useReducedMotionConfig } from "motion/react";
+import { BAR_SPRING, SNAP_SPRING } from "@agent-hud/ui/lib/motion";
 import type { Quota } from "@agent-hud/protocol";
 import { quotaDisplayLabel, quotaPercent } from "@agent-hud/ui/format";
 import { useFormat } from "@agent-hud/ui/format-context";
@@ -6,8 +8,14 @@ import { quotaMetric } from "../quota-metrics";
 import { quotaShortName } from "../model";
 import { usePanelServices } from "../PanelContext";
 import { useGround } from "../ground";
-import { levelFill, levelText, type Level } from "../tokens";
+import {
+  BAR_CRITICAL_FILL,
+  barLevelFill,
+  barValueText,
+  type Level,
+} from "../tokens";
 import { FittingName } from "./FittingName";
+import { formatBarReset, quotaDisplayName } from "./quota-row-format";
 import { palette, tabular, type Measure } from "./theme";
 
 /** One quota window as a bar row: its name, the bar with burn's projection and
@@ -52,26 +60,28 @@ export function SourceQuotaRow({
   const budget = quotaPercent(reading.budgetPercent, format.quotaDisplay);
   const quotaLevel: Level =
     row.status === "critical" || row.status === "warning" ? row.status : "ok";
-  const level: Level =
-    measure === "quota"
-      ? quotaLevel
-      : measure === "burn" && reading.runsOut
-        ? "warning"
-        : "ok";
   const known = reading.available && row.status !== "stale";
-  const color = known ? levelFill(level, ground) : colors.tertiary;
-  // The value is text: the level's text shade (darker on a light HUD).
-  const valueColor = levelText(level, ground);
+  const still = Boolean(useReducedMotionConfig());
   const showsTrack = measure === "quota" || measure === "burn";
+  const barRatio = Math.max(0, Math.min(1, (solidPercent ?? 0) / 100));
+  const displayName = quotaDisplayName(row.name);
+  const shortName = quotaDisplayName(quotaShortName(row));
+  const detailText =
+    measure === "quota" ? formatBarReset(row, now, format) : reading.detail;
+  const showDetail = (showReset || measure !== "quota") && Boolean(detailText);
+  const valueColorFinal = barValueText(ground);
   return (
-    <div
+    <motion.div
       className="hud-source-quota-row"
-      title={`${row.name} · ${reading.hint}`}
+      title={`${displayName} · ${reading.hint}`}
       role={clickable ? "button" : undefined}
       tabIndex={clickable ? 0 : undefined}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={clickable ? activate : undefined}
+      whileHover={clickable && !still ? { x: 2 } : undefined}
+      whileTap={clickable && !still ? { scale: 0.99 } : undefined}
+      transition={still ? { duration: 0 } : SNAP_SPRING}
       onKeyDown={
         clickable
           ? (e) => {
@@ -84,83 +94,133 @@ export function SourceQuotaRow({
       }
       style={{
         display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "var(--hud-row-padding, 4px) 6px",
+        flexDirection: "column",
+        gap: 6,
+        padding: "var(--hud-row-padding, 5px) 6px",
         fontSize: 13,
-        lineHeight: "16px",
-        minHeight: "calc(16px + var(--hud-row-padding, 4px) * 2)",
-        borderRadius: 6,
+        lineHeight: "17px",
+        borderRadius: 8,
         cursor: clickable ? "pointer" : undefined,
         background: hovered && clickable ? colors.selected : "transparent",
-        transition: "background 0.12s ease",
+        transition: "background 0.14s ease",
       }}
     >
-      <span
+      <div
         style={{
-          display: "block",
-          width: 8,
-          height: 8,
-          flex: "0 0 8px",
-          borderRadius: "50%",
-          background: color,
-          boxShadow: light || !known ? undefined : `0 0 8px ${color}`,
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "space-between",
+          gap: 10,
+          width: "100%",
+          minWidth: 0,
         }}
-      />
-      <FittingName
-        name={row.name}
-        short={quotaShortName(row)}
-        style={{
-          flex: "0 0 152px",
-          width: 152,
-          fontWeight: 600,
-          color: colors.text,
-        }}
-      />
-      {showsTrack ? (
+      >
+        <FittingName
+          name={displayName}
+          short={shortName}
+          style={{
+            flex: "1 1 auto",
+            minWidth: 0,
+            fontSize: 13,
+            lineHeight: "17px",
+            fontWeight: 500,
+            color: colors.text,
+          }}
+        />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 8,
+            flexShrink: 0,
+          }}
+        >
+          {showDetail && (
+            <span
+              style={{
+                ...tabular,
+                whiteSpace: "nowrap",
+                fontSize: 12,
+                lineHeight: "16px",
+                fontWeight: 400,
+                color:
+                  measure === "burn" && reading.runsOut
+                    ? BAR_CRITICAL_FILL
+                    : colors.secondary,
+              }}
+            >
+              {detailText}
+            </span>
+          )}
+          <span
+            style={{
+              ...tabular,
+              minWidth: 34,
+              textAlign: "right",
+              fontSize: reading.available ? 12.5 : 12,
+              lineHeight: "16px",
+              fontWeight: 500,
+              whiteSpace: "nowrap",
+              color: known ? valueColorFinal : colors.secondary,
+            }}
+          >
+            {reading.value}
+          </span>
+        </div>
+      </div>
+      {showsTrack && (
         <span
           role="meter"
-          aria-label={`${row.name} · ${quotaDisplayLabel(format.quotaDisplay, format.language)}`}
+          aria-label={`${displayName} · ${quotaDisplayLabel(format.quotaDisplay, format.language)}`}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={pct ?? undefined}
           style={{
             position: "relative",
-            height: 4,
-            flex: "1 1 0",
-            minWidth: 0,
+            display: "block",
+            width: "100%",
+            height: 5,
             background: colors.track,
-            borderRadius: 4,
+            borderRadius: 999,
             overflow: "hidden",
           }}
         >
           {projection != null && pct != null && (
-            <i
+            <motion.i
+              initial={still ? false : { opacity: 0, scaleX: 0 }}
+              animate={{ opacity: 0.38, scaleX: 1 }}
+              transition={still ? { duration: 0 } : BAR_SPRING}
               style={{
                 position: "absolute",
                 top: 0,
                 left: `${Math.min(pct, projection)}%`,
                 display: "block",
-                height: 4,
+                height: 5,
                 width: `${Math.abs(projection - pct)}%`,
-                borderRadius: 4,
-                background: reading.runsOut ? colors.warning : colors.secondary,
-                opacity: 0.38,
+                borderRadius: 999,
+                transformOrigin: "left center",
+                background: reading.runsOut
+                  ? BAR_CRITICAL_FILL
+                  : colors.secondary,
               }}
             />
           )}
-          <i
+          <motion.i
+            initial={still ? false : { scaleX: 0 }}
+            animate={{ scaleX: barRatio }}
+            transition={still ? { duration: 0 } : BAR_SPRING}
             style={{
               position: "absolute",
               inset: "0 auto 0 0",
               display: "block",
-              height: 4,
-              width: `${solidPercent ?? 0}%`,
-              borderRadius: 4,
+              height: 5,
+              width: "100%",
+              transformOrigin: "left center",
+              borderRadius: 999,
               background:
                 row.status === "stale"
                   ? colors.secondary
-                  : levelFill(quotaLevel, ground),
+                  : barLevelFill(quotaLevel, ground),
             }}
           />
           {measure === "burn" && budget != null && (
@@ -180,44 +240,7 @@ export function SourceQuotaRow({
             />
           )}
         </span>
-      ) : (
-        <span aria-hidden="true" style={{ flex: "1 1 0", minWidth: 0 }} />
       )}
-      <span
-        style={{
-          ...tabular,
-          minWidth: 62,
-          flexShrink: 0,
-          textAlign: "right",
-          fontSize: reading.available ? 13 : 12,
-          fontWeight: 600,
-          whiteSpace: "nowrap",
-          color: known ? valueColor : colors.secondary,
-        }}
-      >
-        {reading.value}
-      </span>
-      {(showReset || measure !== "quota") && (
-        <span
-          style={{
-            ...tabular,
-            flex: "0 0 96px",
-            width: 96,
-            textAlign: "right",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            fontSize: 12,
-            fontWeight: 400,
-            color:
-              measure === "burn" && reading.runsOut
-                ? colors.warningText
-                : colors.secondary,
-          }}
-        >
-          {reading.detail}
-        </span>
-      )}
-    </div>
+    </motion.div>
   );
 }

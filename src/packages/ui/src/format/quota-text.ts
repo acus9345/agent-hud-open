@@ -133,3 +133,12 @@ export function samplingHint(
   const minimum = forecast(required, language);
   return `${reason}\n${translate(language, "Sampled {{observed}}; at least {{minimum}} of readings needed", { observed, minimum })}`;
 }
+
+/** Replaces macOS-specific wording in plan/usage status copy. */
+export function cleanDeviceCopy(text: string): string {
+  return text
+    .replace(/\bon this Mac\b/gi, "on this device")
+    .replace(/\bThis Mac['’]s\b/g, "This device's")
+    .replace(/这台\s*Mac/g, "这台设备") // l10n-ignore
+    .replace(/這台\s*Mac/g, "這台裝置"); // l10n-ignore
+}

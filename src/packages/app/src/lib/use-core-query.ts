@@ -3,6 +3,8 @@ import type { NativeMethod } from "@agent-hud/protocol";
 
 /** The least time between a request and the next for newer data. */
 const SPACING_MS = 1_500;
+/** Bounded backoff delays before surfacing a transient query error. */
+const RETRY_DELAYS_MS = [500, 1_200, 2_500] as const;
 
 type Action = (
   method: NativeMethod,
@@ -50,26 +52,46 @@ export function useCoreQuery<T>(
   const out = useRef<{ method: string; key: string; refresh: unknown } | null>(
     null,
   );
+  const retries = useRef<{ sig: string; count: number }>({ sig: "", count: 0 });
   useEffect(() => {
     if (!active) return;
     if (out.current?.method === method && out.current.key === key) return;
+    let disposed = false;
+    let roundTimer = 0;
+    let retryTimer = 0;
+    const sig = `${method}|${key}|${String(refresh ?? "")}`;
+    if (retries.current.sig !== sig) retries.current = { sig, count: 0 };
     const request = { method, key, refresh, asked: wanted.current.asked };
     out.current = request;
     const same = () =>
+      !disposed &&
       wanted.current.method === request.method &&
       wanted.current.key === request.key;
     const started = Date.now();
+    let retrying = false;
     setFetching(true);
     void actionRef
       .current(method, JSON.parse(key))
       .then((value) => {
         if (!same()) return;
+        retries.current = { sig, count: 0 };
         setData(value as T);
         setAnswered({ filters: request.asked, ms: Date.now() - started });
         setFailure(null);
       })
       .catch((error: unknown) => {
         if (!same()) return;
+        if (
+          wanted.current.active &&
+          retries.current.count < RETRY_DELAYS_MS.length
+        ) {
+          const delay = RETRY_DELAYS_MS[retries.current.count++];
+          retrying = true;
+          retryTimer = window.setTimeout(() => {
+            if (!disposed) setRound((value) => value + 1);
+          }, delay);
+          return;
+        }
         setFailure({
           key,
           message: error instanceof Error ? error.message : String(error),
@@ -80,13 +102,26 @@ export function useCoreQuery<T>(
         if (!same()) return;
         // The next round leaves at least 1.5 s after this one did, so a
         // ledger read in a hurry is not asked again on every pass.
-        if (wanted.current.active && wanted.current.refresh !== request.refresh)
-          window.setTimeout(
-            () => setRound((value) => value + 1),
+        if (
+          !retrying &&
+          wanted.current.active &&
+          wanted.current.refresh !== request.refresh
+        ) {
+          roundTimer = window.setTimeout(
+            () => {
+              if (!disposed) setRound((value) => value + 1);
+            },
             Math.max(0, SPACING_MS - (Date.now() - started)),
           );
-        else setFetching(false);
+        } else if (!retrying) {
+          setFetching(false);
+        }
       });
+    return () => {
+      disposed = true;
+      window.clearTimeout(roundTimer);
+      window.clearTimeout(retryTimer);
+    };
   }, [method, key, active, refresh, round]);
   const error = failure?.key === key ? failure.message : null;
   return {

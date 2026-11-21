@@ -1,5 +1,9 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { card, type StatsTheme } from "../StatsTheme";
+import {
+  DashboardSection,
+  type SurfaceTier,
+} from "@agent-hud/ui/DashboardMotion";
+import { surfaceStyle, type StatsTheme } from "../StatsTheme";
 import { usePendingLook, type Pending } from "./pending";
 
 /** An element's width, following every resize of the window. The ref is a
@@ -54,6 +58,8 @@ export function Panel({
   area,
   pending = [],
   theme,
+  variant = "secondary",
+  motionIndex = 0,
   children,
   style,
 }: {
@@ -63,16 +69,21 @@ export function Panel({
   area: string;
   pending?: (Pending | null)[];
   theme: StatsTheme;
+  variant?: SurfaceTier;
+  motionIndex?: number;
   children: ReactNode;
   style?: CSSProperties;
 }) {
   const look = usePendingLook(...pending);
+  const plainSection = variant === "plain";
   return (
-    <section
+    <DashboardSection
+      index={motionIndex}
       className={`stats-panel stats-area-${area} ${look.className}`}
       style={{
-        ...card(theme),
-        padding: "14px 16px 16px",
+        ...surfaceStyle(theme, variant),
+        padding: plainSection ? "14px 2px 4px" : "15px 18px 17px",
+        ...(plainSection ? { borderTop: `1px solid ${theme.divider}` } : {}),
         display: "grid",
         gap: 12,
         alignContent: "start",
@@ -91,7 +102,9 @@ export function Panel({
         }}
       >
         <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-          <strong style={{ fontSize: 13, fontWeight: 600 }}>{title}</strong>
+          <strong style={{ fontSize: plainSection ? 14 : 13, fontWeight: 600 }}>
+            {title}
+          </strong>
           {meta && (
             <span style={{ fontSize: 11, color: theme.secondary }}>{meta}</span>
           )}
@@ -99,6 +112,6 @@ export function Panel({
         {actions}
       </header>
       {children}
-    </section>
+    </DashboardSection>
   );
 }
