@@ -1,4 +1,11 @@
 import { useMemo, type ReactNode } from "react";
+import { useClockNow } from "@agent-hud/ui/format-context";
+import { motion, useReducedMotionConfig } from "motion/react";
+import {
+  SCROLL_EASE,
+  SNAP_SPRING,
+  staggerDelay,
+} from "@agent-hud/ui/lib/motion";
 import type {
   PanelBlockLayout,
   PanelNode,
@@ -52,7 +59,9 @@ export function QuotaBlocks({
       ? COMPACT_LEAST
       : undefined;
   };
+  const still = Boolean(useReducedMotionConfig());
   const lines = blockLines(blocks, span, width, density.section, least);
+  let cardIndex = 0;
   return (
     <div
       className="hud-source-blocks"
@@ -71,16 +80,29 @@ export function QuotaBlocks({
             gap: density.section,
           }}
         >
-          {line.map((block) => (
-            <div
-              key={block.key}
-              data-hud-block={block.key}
-              data-hud-half={columns > 1 ? "true" : undefined}
-              style={{ minWidth: 0, ...(separated ? card(colors) : {}) }}
-            >
-              {block.content}
-            </div>
-          ))}
+          {line.map((block) => {
+            const delay = staggerDelay(cardIndex++, 0.02, 0.036);
+            return (
+              <motion.div
+                key={block.key}
+                data-hud-block={block.key}
+                data-hud-half={columns > 1 ? "true" : undefined}
+                initial={still ? false : { opacity: 0, y: 8, scale: 0.985 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={
+                  still
+                    ? { duration: 0 }
+                    : { duration: 0.32, delay, ease: SCROLL_EASE }
+                }
+                whileHover={
+                  still ? undefined : { y: -1, transition: SNAP_SPRING }
+                }
+                style={{ minWidth: 0, ...(separated ? card(colors) : {}) }}
+              >
+                {block.content}
+              </motion.div>
+            );
+          })}
         </div>
       ))}
     </div>
@@ -110,6 +132,7 @@ export function usePanelBlocks({
   custom: Record<string, PanelNode>;
   customAt: (key: string) => ReactNode;
 }) {
+  const now = useClockNow(Date.parse(snapshot.generatedAt));
   const rows = useMemo(
     () =>
       snapshot.quotas.filter(
@@ -177,7 +200,7 @@ export function usePanelBlocks({
             layout={config.panelLayout.blocks?.[vendor]}
             snapshot={snapshot}
             active={active}
-            now={Date.parse(snapshot.generatedAt)}
+            now={now}
             light={light}
             Logo={Logo}
             showReset={config.resetCountdown}

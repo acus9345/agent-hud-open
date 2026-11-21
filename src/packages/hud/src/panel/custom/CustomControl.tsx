@@ -4,7 +4,7 @@
  * services, so opening Statistics or a session behaves as the panel's rows do. */
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { PanelNode, Snapshot } from "@agent-hud/protocol";
-import { useFormat } from "@agent-hud/ui/format-context";
+import { useClockNow, useFormat } from "@agent-hud/ui/format-context";
 import { useGround } from "../../ground";
 import { palette, type Logo } from "../theme";
 import { collections } from "./custom-collections";
@@ -63,10 +63,8 @@ export function CustomControl({
   const root = node as Node;
   const [state, setStates] = useState(() => initialState(root as never));
   const all = useMemo(() => collections(snapshot), [snapshot]);
-  const now = useMinute(
-    active && readsTime(node),
-    Date.parse(snapshot.generatedAt),
-  );
+  const fallbackNow = useClockNow(Date.parse(snapshot.generatedAt));
+  const now = useMinute(active && readsTime(node), fallbackNow);
   const drawing: Drawing = {
     all,
     snapshot,

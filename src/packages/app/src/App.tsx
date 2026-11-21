@@ -1,5 +1,5 @@
-import { FormatProvider } from "@agent-hud/ui/format-context";
-import { lazy, useMemo, type ReactNode } from "react";
+import { ClockProvider, FormatProvider } from "@agent-hud/ui/format-context";
+import { lazy, Suspense, useMemo, type ReactNode } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { emit } from "@tauri-apps/api/event";
 import { toast } from "sonner";
@@ -24,12 +24,19 @@ import { snapshotLanguage } from "@agent-hud/ui/format";
 import type { AgentPluginItem } from "./settings/agent-plugins/types";
 import type { AppExtensionPage } from "./settings/pages";
 import type { ProductGuide } from "./guide/plan";
-import { SettingsWindow } from "./settings/SettingsWindow";
 import { SourceMenu } from "./SourceMenu";
-import { StatisticsWindow } from "./StatisticsWindow";
 import { hudEndsLink } from "./lib/hud-ends-link";
 import { hudInspect } from "./lib/hud-inspect";
 import "./lib/animation-handlers";
+
+const SettingsWindow = lazy(() =>
+  import("./settings/SettingsWindow").then((m) => ({
+    default: m.SettingsWindow,
+  })),
+);
+const StatisticsWindow = lazy(() =>
+  import("./StatisticsWindow").then((m) => ({ default: m.StatisticsWindow })),
+);
 
 // Windows load their own views. Statistics does not need the shader/bot renderer,
 // and a resting HUD does not need the historical charts and settings panes.
@@ -69,6 +76,7 @@ function AppContent({
   const windowActive = useWindowActivity();
   const {
     snapshot: collectedSnapshot,
+    clock,
     loading,
     error,
     demo,
@@ -218,7 +226,9 @@ function AppContent({
       setting={snapshotLanguage(snapshot)}
       quotaDisplay={snapshot?.settings.quotaDisplay}
     >
-      {node}
+      <ClockProvider now={clock ? Date.parse(clock) : undefined}>
+        {node}
+      </ClockProvider>
     </FormatProvider>
   );
   if (surface)
@@ -244,16 +254,18 @@ function AppContent({
   if (mark) return provide(<MarkWindow theme={theme} />);
   if (statistics)
     return provide(
-      <StatisticsWindow
-        snapshot={snapshot}
-        theme={theme}
-        act={act}
-        windowActive={windowActive}
-        demo={demo}
-        error={error}
-        refresh={refresh}
-        sourceMenu={sourceMenu}
-      />,
+      <Suspense fallback={null}>
+        <StatisticsWindow
+          snapshot={snapshot}
+          theme={theme}
+          act={act}
+          windowActive={windowActive}
+          demo={demo}
+          error={error}
+          refresh={refresh}
+          sourceMenu={sourceMenu}
+        />
+      </Suspense>,
     );
   const settingsProps = snapshot
     ? {
@@ -266,30 +278,32 @@ function AppContent({
     : null;
   return provide(
     <PanelServicesProvider value={panelServices}>
-      <SettingsWindow
-        extensionPages={extensionPages}
-        guide={guide}
-        agentPlugins={agentPlugins}
-        productName={productName}
-        version={version}
-        theme={theme}
-        demo={demo}
-        sourceMenu={sourceMenu}
-        error={error}
-        loading={loading}
-        refresh={refresh}
-        snapshot={snapshot}
-        settingsProps={settingsProps}
-        extensionRequest={extensionRequest}
-        ready={ready}
-        selectedId={selectedId}
-        monitors={monitors}
-        selectScreen={selectScreen}
-        layout={config.panelLayout}
-        onLayout={(layout) => setLayout(layout)}
-        preferences={store.sources ?? {}}
-        onPreferences={setSource}
-      />
+      <Suspense fallback={null}>
+        <SettingsWindow
+          extensionPages={extensionPages}
+          guide={guide}
+          agentPlugins={agentPlugins}
+          productName={productName}
+          version={version}
+          theme={theme}
+          demo={demo}
+          sourceMenu={sourceMenu}
+          error={error}
+          loading={loading}
+          refresh={refresh}
+          snapshot={snapshot}
+          settingsProps={settingsProps}
+          extensionRequest={extensionRequest}
+          ready={ready}
+          selectedId={selectedId}
+          monitors={monitors}
+          selectScreen={selectScreen}
+          layout={config.panelLayout}
+          onLayout={(layout) => setLayout(layout)}
+          preferences={store.sources ?? {}}
+          onPreferences={setSource}
+        />
+      </Suspense>
     </PanelServicesProvider>,
   );
 }

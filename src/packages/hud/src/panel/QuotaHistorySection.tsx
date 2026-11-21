@@ -6,7 +6,7 @@ import type {
   QuotaHistoryWindow,
   Snapshot,
 } from "@agent-hud/protocol";
-import { useFormat, useT } from "@agent-hud/ui/format-context";
+import { useClockNow, useFormat, useT } from "@agent-hud/ui/format-context";
 import { quotaPercentLabel } from "@agent-hud/ui/format";
 import { usePanelQuery } from "../PanelContext";
 import { useGround } from "../ground";
@@ -147,9 +147,9 @@ export function QuotaHistorySection({
   const [period, setPeriod] = useState<Period>(initial);
   useEffect(() => setPeriod(initial), [initial]);
   const colors = palette(useGround(light));
+  const now = useClockNow(Date.parse(snapshot.generatedAt));
   // Asked again every five minutes, and whenever the usage moves.
-  const to =
-    Math.ceil(Date.parse(snapshot.generatedAt) / 300_000) * 300_000 || 0;
+  const to = Math.ceil(now / 300_000) * 300_000 || 0;
   const query = usePanelQuery<QuotaHistoryResponse>(
     "quota_history",
     {
@@ -167,7 +167,6 @@ export function QuotaHistorySection({
     (query.data?.agents ?? []).map((agent) => [agent.id, agent.name]),
   );
   const display = quotaDisplay ?? "consumed";
-  const now = Date.parse(snapshot.generatedAt);
   const { from, until } = cycleSpan(to, days[period]);
   return (
     <section

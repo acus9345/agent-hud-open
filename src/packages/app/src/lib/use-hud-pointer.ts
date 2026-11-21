@@ -16,9 +16,10 @@ const outsidePointer: HUDNativePointer = {
 /** The pointer on the guide's window beside the HUD is not on the HUD: it
  * clicks the window's buttons but never opens the panel. */
 function offGuide<T extends HUDNativePointer>(pointer: T): T {
-  const guide = document.querySelector(".hud-guide")?.getBoundingClientRect();
   const point = pointer.point;
-  if (!pointer.inside || !point || !guide?.width) return pointer;
+  if (!pointer.inside || !point) return pointer;
+  const guide = document.querySelector(".hud-guide")?.getBoundingClientRect();
+  if (!guide?.width) return pointer;
   const scene = document.querySelector(".hud-scene")?.getBoundingClientRect();
   const x = point.x + (scene?.left ?? 0);
   const y = point.y + (scene?.top ?? 0);
@@ -36,9 +37,31 @@ const folded = (element: Element) =>
 /** Only outer HUD geometry wakes native reports; animated bot descendants never do. */
 function observeHUDContours(report: () => void) {
   const selector = `.hud-scene, ${REGIONS}`;
+  const stateAttributes = new Set([
+    "data-open",
+    "data-hover",
+    "data-pinned",
+    "data-folded",
+  ]);
   let timer: ReturnType<typeof setTimeout> | null = null,
     last = 0;
-  const queue = () => {
+  const queueImmediate = () => {
+    if (timer !== null) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    last = performance.now();
+    report();
+  };
+  const queue = (records?: MutationRecord[]) => {
+    if (
+      records?.some(
+        (r) => r.attributeName && stateAttributes.has(r.attributeName),
+      )
+    ) {
+      queueImmediate();
+      return;
+    }
     if (timer !== null) return;
     timer = setTimeout(
       () => {
@@ -46,7 +69,7 @@ function observeHUDContours(report: () => void) {
         last = performance.now();
         report();
       },
-      Math.max(0, 34 - (performance.now() - last)),
+      Math.max(0, 64 - (performance.now() - last)),
     );
   };
   const attributes = new MutationObserver(queue);
@@ -55,7 +78,14 @@ function observeHUDContours(report: () => void) {
     for (const element of document.querySelectorAll(selector))
       attributes.observe(element, {
         attributes: true,
-        attributeFilter: ["style", "class", "data-folded"],
+        attributeFilter: [
+          "style",
+          "class",
+          "data-folded",
+          "data-open",
+          "data-hover",
+          "data-pinned",
+        ],
       });
   };
   const relevant = (node: Node) =>
@@ -68,7 +98,7 @@ function observeHUDContours(report: () => void) {
       )
     ) {
       bind();
-      queue();
+      queueImmediate();
     }
   });
   const root = document.getElementById("root");
@@ -84,11 +114,13 @@ function observeHUDContours(report: () => void) {
 /** The native pointer over this screen's HUD. The HUD reports its hit regions
  * to the host, which answers each report with where the pointer is, and sends
  * every move after. */
-export function useHUDPointer(screenId: string) {
+export function useHUDPointer(screenId: string, trackOutside = false) {
   const [nativePointer, setNativePointer] = useState<
     HUDNativePointer | undefined
   >(() => (isTauri() ? outsidePointer : undefined));
   const pointerRevision = useRef(0);
+  const trackOutsideRef = useRef(trackOutside);
+  trackOutsideRef.current = trackOutside;
   useEffect(() => {
     if (!isTauri()) return;
     let disposed = false;
@@ -98,7 +130,21 @@ export function useHUDPointer(screenId: string) {
       (event) => {
         if (disposed || event.payload.screenId !== screenId) return;
         pointerRevision.current += 1;
-        setNativePointer(offGuide(event.payload));
+        const next = offGuide(event.payload);
+        setNativePointer((previous) => {
+          if (!next.inside && previous && !previous.inside) {
+            if (!trackOutsideRef.current) return previous;
+            if (
+              previous.point &&
+              next.point &&
+              Math.abs(next.point.x - previous.point.x) < 6 &&
+              Math.abs(next.point.y - previous.point.y) < 6
+            ) {
+              return previous;
+            }
+          }
+          return next;
+        });
       },
     );
     return () => {
@@ -155,11 +201,15 @@ export function useHUDPointer(screenId: string) {
           .filter((element) => !folded(element))
           .map((element) => {
             const rect = element.getBoundingClientRect();
+            const left = Math.floor(rect.x - (scene?.left ?? 0));
+            const top = Math.floor(rect.y - (scene?.top ?? 0));
+            const right = Math.ceil(rect.x - (scene?.left ?? 0) + rect.width);
+            const bottom = Math.ceil(rect.y - (scene?.top ?? 0) + rect.height);
             return {
-              x: rect.x - (scene?.left ?? 0),
-              y: rect.y - (scene?.top ?? 0),
-              width: rect.width,
-              height: rect.height,
+              x: left,
+              y: top,
+              width: Math.max(0, right - left),
+              height: Math.max(0, bottom - top),
             };
           })
           .filter((rect) => rect.width > 0 && rect.height > 0);

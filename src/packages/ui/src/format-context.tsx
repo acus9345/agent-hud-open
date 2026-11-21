@@ -50,6 +50,28 @@ export function useFormat(): FormatSettings {
   return useContext(FormatContext);
 }
 
+const ClockContext = createContext<number | null>(null);
+
+/** Independent clock timestamp provider so periodic ticks never clone `Snapshot`. */
+export function ClockProvider({
+  now,
+  children,
+}: {
+  now: number | null | undefined;
+  children: ReactNode;
+}) {
+  const value = now != null && Number.isFinite(now) ? now : null;
+  return (
+    <ClockContext.Provider value={value}>{children}</ClockContext.Provider>
+  );
+}
+
+/** Current live clock timestamp in ms, falling back to `fallbackMs` outside a clock feed. */
+export function useClockNow(fallbackMs: number): number {
+  const clock = useContext(ClockContext);
+  return clock != null && Number.isFinite(clock) ? clock : fallbackMs;
+}
+
 /** The text of an English key in the interface language:
  * `t("Retry")`, `t("{{count}} hidden", { count })`. */
 export function useT(): Translate {

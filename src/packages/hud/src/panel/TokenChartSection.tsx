@@ -14,7 +14,7 @@ import { Button } from "@agent-hud/ui/components/button";
 import { HUD_METRICS, sourcesForMark } from "../model";
 import { usePanelQuery } from "../PanelContext";
 import { palette, tabular, type Logo, type Period } from "./theme";
-import { useT } from "@agent-hud/ui/format-context";
+import { useClockNow, useT } from "@agent-hud/ui/format-context";
 import { systemTimeZone } from "@agent-hud/ui/format";
 import { hexAlpha } from "../tokens";
 import { useGround } from "../ground";
@@ -54,7 +54,7 @@ export function SourceTokenChart({
   const [hovered, setHovered] = useState<number | null>(null);
   const histogram = useRef<HTMLDivElement>(null);
   const colors = palette(useGround(light));
-  const now = Date.parse(snapshot.generatedAt);
+  const now = useClockNow(Date.parse(snapshot.generatedAt));
   const periods: { label: Period; duration: number }[] = [
     { label: "24h", duration: 86_400_000 },
     { label: "7d", duration: 7 * 86_400_000 },
@@ -281,6 +281,7 @@ export function SourceTokenChart({
                     fill={colors.secondary}
                     light={light}
                     transition={moving}
+                    index={index}
                   />
                 </motion.div>
               ))

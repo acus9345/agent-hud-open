@@ -13,7 +13,7 @@ import { reveal as fadeIn } from "./SessionMotion";
 import { UsagePlaceholder } from "./SessionPlaceholders";
 import { ProjectExecutionsCard, SubagentsCard } from "./WorkerCards";
 import { card, CardTitle, type Theme } from "./SessionTheme";
-import { useT } from "@agent-hud/ui/format-context";
+import { useClockNow, useT } from "@agent-hud/ui/format-context";
 
 const stack: CSSProperties = {
   display: "flex",
@@ -60,7 +60,7 @@ export function InlineDetail({
   const t = useT();
   const [measure, setMeasure] = useState<Measure>("tokens");
   const client = sessionClient(session, snapshot.providers);
-  const now = Date.parse(snapshot.generatedAt);
+  const now = useClockNow(Date.parse(snapshot.generatedAt));
   const entries = detail?.turns ?? [];
   const byPrompt = detail?.turnsBy === "prompt";
   const picked = entries.find((entry) => entry.id === selectedEntry);

@@ -6,7 +6,7 @@ import {
   type CSSProperties,
 } from "react";
 import { systemTimeZone } from "@agent-hud/ui/format";
-import { useFormat, useT } from "@agent-hud/ui/format-context";
+import { useClockNow, useFormat, useT } from "@agent-hud/ui/format-context";
 import { useSessionDetail, useSessions } from "./lib/use-sessions";
 import type {
   NativeMethod,
@@ -64,7 +64,7 @@ export default function SessionStatistics({
   const { language } = useFormat();
   const theme = themeFor(light, language);
   const t = useT();
-  const now = Date.parse(snapshot.generatedAt);
+  const now = useClockNow(Date.parse(snapshot.generatedAt));
   const timeZone = useMemo(systemTimeZone, []);
   const listQuery = useMemo<Omit<SessionsQuery, "offset" | "limit">>(
     () => ({

@@ -43,7 +43,7 @@ pub async fn hud_report_regions(
         };
         let ignored = state.drag.is_none() && !pointer.inside;
         // A failed position read must never leave a transparent canvas blocking the user's apps.
-        apply_ignore_cursor(&window, &mut state, ignored, true)?;
+        apply_ignore_cursor(&window, &mut state, ignored, false)?;
         // Apply input acceptance before notifying React: its expanded controls must be
         // able to receive clicks even if the ignore->accept switch causes no DOM enter.
         publish_pointer(&app, &shared, &mut state, pointer.clone(), true);
@@ -128,14 +128,14 @@ pub(super) fn publish_pointer(
             previous.inside != pointer.inside || previous.point.is_some() != pointer.point.is_some()
         });
         // The same native sample supplies local Bot gaze outside the interactive
-        // region. Limit only those motion notifications to 12fps; transitions, failed
+        // region. Limit only those motion notifications to ~30fps; transitions, failed
         // reads and inside coordinates always arrive immediately and remain exact.
         if !force
             && !pointer.inside
             && !transition
             && state
                 .pointer_emitted_at
-                .is_some_and(|last| last.elapsed() < Duration::from_millis(83))
+                .is_some_and(|last| last.elapsed() < Duration::from_millis(33))
         {
             return;
         }
@@ -198,6 +198,33 @@ fn region_contains(regions: &[InteractiveRegion], point: Point) -> bool {
     })
 }
 
+/// Shortest Euclidean distance from `point` to any interactive region (0 when inside).
+pub(super) fn pointer_distance(regions: &[InteractiveRegion], point: Option<Point>) -> f64 {
+    let (Some(point), false) = (point, regions.is_empty()) else {
+        return f64::INFINITY;
+    };
+    regions
+        .iter()
+        .map(|region| {
+            let dx = if point.x < region.x {
+                region.x - point.x
+            } else if point.x > region.x + region.width {
+                point.x - (region.x + region.width)
+            } else {
+                0.0
+            };
+            let dy = if point.y < region.y {
+                region.y - point.y
+            } else if point.y > region.y + region.height {
+                point.y - (region.y + region.height)
+            } else {
+                0.0
+            };
+            dx.hypot(dy)
+        })
+        .fold(f64::INFINITY, f64::min)
+}
+
 pub(super) fn apply_ignore_cursor(
     window: &tauri::WebviewWindow,
     state: &mut HudState,
@@ -222,4 +249,33 @@ pub(super) fn apply_ignore_cursor(
         state.last_ignore_cursor = Some(ignored);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{pointer_distance, InteractiveRegion, Point};
+
+    #[test]
+    fn pointer_distance_measures_zero_inside_and_nearest_edge_outside() {
+        let region = InteractiveRegion {
+            x: 100.0,
+            y: 50.0,
+            width: 200.0,
+            height: 40.0,
+        };
+        assert_eq!(
+            pointer_distance(&[region], Some(Point { x: 150.0, y: 70.0 })),
+            0.0
+        );
+        assert_eq!(
+            pointer_distance(&[region], Some(Point { x: 150.0, y: 110.0 })),
+            20.0
+        );
+        assert_eq!(
+            pointer_distance(&[region], Some(Point { x: 97.0, y: 46.0 })),
+            5.0
+        );
+        assert!(pointer_distance(&[region], None).is_infinite());
+        assert!(pointer_distance(&[], Some(Point { x: 0.0, y: 0.0 })).is_infinite());
+    }
 }

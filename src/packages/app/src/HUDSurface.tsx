@@ -55,7 +55,10 @@ export default function NativeHUDSurface({
   demo?: boolean;
   guide?: ProductGuide;
 }) {
-  const nativePointer = useHUDPointer(screenId);
+  const nativePointer = useHUDPointer(
+    screenId,
+    config.botLogos || monitors.length > 1,
+  );
   const textFocused = useHUDTextFocus(
     screenId,
     snapshot.approvals,

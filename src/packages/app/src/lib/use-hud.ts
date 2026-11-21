@@ -33,6 +33,7 @@ export function useHUD({ active = true }: { active?: boolean } = {}) {
   const ownsPolling = !isTauri();
   const [demo, updateDemo] = useState<boolean | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [clock, setClock] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -96,20 +97,16 @@ export function useHUD({ active = true }: { active?: boolean } = {}) {
       },
       { target },
     );
-    const clock = listen<string>(
+    const clockSubscription = listen<string>(
       "hud:clock",
       ({ payload }) => {
         if (disposed) return;
         latestClock = payload;
-        setSnapshot((previous) =>
-          previous && previous.generatedAt !== payload
-            ? { ...previous, generatedAt: payload }
-            : previous,
-        );
+        setClock((previous) => (previous === payload ? previous : payload));
       },
       { target },
     );
-    void Promise.all([subscription, failures, clock])
+    void Promise.all([subscription, failures, clockSubscription])
       .then(async () => {
         if (disposed) return;
         const before = revision;
@@ -119,13 +116,12 @@ export function useHUD({ active = true }: { active?: boolean } = {}) {
         }>("cached_snapshot");
         if (!disposed && before === revision) {
           if (cached.snapshot) {
-            const value = cached.snapshot;
+            receive(cached.snapshot);
             if (
               latestClock &&
-              Date.parse(latestClock) > Date.parse(value.generatedAt)
+              Date.parse(latestClock) > Date.parse(cached.snapshot.generatedAt)
             )
-              value.generatedAt = latestClock;
-            receive(value);
+              setClock(latestClock);
           }
           setError(cached.error);
           if (cached.snapshot || cached.error) setLoading(false);
@@ -141,7 +137,7 @@ export function useHUD({ active = true }: { active?: boolean } = {}) {
       disposed = true;
       void subscription.then((unlisten) => unlisten());
       void failures.then((unlisten) => unlisten());
-      void clock.then((unlisten) => unlisten());
+      void clockSubscription.then((unlisten) => unlisten());
     };
   }, [demo, ownsPolling, active]);
   useEffect(() => {
@@ -192,5 +188,5 @@ export function useHUD({ active = true }: { active?: boolean } = {}) {
     window.addEventListener("agenthud:refresh", listener);
     return () => window.removeEventListener("agenthud:refresh", listener);
   }, [refresh]);
-  return { snapshot, loading, error, demo: demo === true, refresh, act };
+  return { snapshot, clock, loading, error, demo: demo === true, refresh, act };
 }

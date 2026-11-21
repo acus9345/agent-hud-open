@@ -59,6 +59,7 @@ fn poll_pointer(app: tauri::AppHandle, shared: Arc<Shared>) {
         let mut placement = None;
         let mut preview = None;
         let mut ended = None;
+        let mut nearest = f64::INFINITY;
         if visible {
             if state.drag.is_some() {
                 match poll_drag(&app, &window, &mut state, &shared) {
@@ -79,6 +80,10 @@ fn poll_pointer(app: tauri::AppHandle, shared: Arc<Shared>) {
                 }
             }
             let pointer = sample_pointer(&app, &window, &state, &shared);
+            nearest = super::pointer_distance(
+                state.regions.as_deref().unwrap_or_default(),
+                pointer.point,
+            );
             let ignored = state.drag.is_none() && !pointer.inside;
             let _ = apply_ignore_cursor(&window, &mut state, ignored, false);
             publish_pointer(&app, &shared, &mut state, pointer, false);
@@ -102,10 +107,12 @@ fn poll_pointer(app: tauri::AppHandle, shared: Arc<Shared>) {
                 false,
             );
         }
-        let pause = if state.drag.is_some() {
+        let pause = if state.drag.is_some() || nearest <= 120.0 {
             Duration::from_millis(16)
+        } else if visible && nearest <= 320.0 {
+            Duration::from_millis(50)
         } else if visible {
-            Duration::from_millis(32)
+            Duration::from_millis(110)
         } else {
             Duration::from_millis(500)
         };
