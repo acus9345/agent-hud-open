@@ -42,10 +42,10 @@ const SURFACE = {
     text: "#f5f5f7",
     secondary: "#98989d",
     tertiary: "#6e6e73",
-    divider: "#ffffff1a",
-    track: "#ffffff1f",
-    card: "#ffffff0d",
-    selected: "#ffffff1f",
+    divider: "rgba(255,255,255,0.07)",
+    track: "rgba(255,255,255,0.085)",
+    card: "rgba(255,255,255,0.032)",
+    selected: "rgba(255,255,255,0.08)",
     // The system blue, which Open's update arrow took as its accent.
     accent: "#0a84ff",
   },
@@ -102,6 +102,37 @@ const LEVEL_SEE_THROUGH = {
 /** A level as a fill: a ring, a bar, a dot. */
 export function levelFill(level: Level, ground: Ground): string {
   return LEVEL_FILL[ground.light ? "light" : "dark"][level];
+}
+
+/** Muted sage green used for normal-level progress bars. */
+export const BAR_OK_FILL = "#5b7a45";
+
+/** Muted terracotta red used for critical-level progress bars. */
+export const BAR_CRITICAL_FILL = "#c34b44";
+
+/** Calm grey used for quota percentage text beside progress bars. */
+export function barValueText(ground: Ground): string {
+  return ground.light ? "#5c5c60" : "#a6a6a6";
+}
+
+/** A level as a progress-bar fill. Never amber/yellow: ok and warning both use muted sage green. */
+export function barLevelFill(level: Level, _ground: Ground): string {
+  return level === "critical" ? BAR_CRITICAL_FILL : BAR_OK_FILL;
+}
+
+/** Normalizes legacy bright green/yellow/red meter fills to muted sage/terracotta. */
+export function mutedMeterColor(color: string): string {
+  const lower = color.toLowerCase();
+  if (lower === "#ff453a" || lower === "#ff3b30") return BAR_CRITICAL_FILL;
+  if (
+    lower === "#3ddc84" ||
+    lower === "#1f9d4c" ||
+    lower === "#ffd23f" ||
+    lower === "#c08000"
+  ) {
+    return BAR_OK_FILL;
+  }
+  return color;
 }
 
 /** A level as text or a thin glyph. */

@@ -62,8 +62,8 @@ export const noButtonChrome: CSSProperties = {
 export function card(colors: ReturnType<typeof hudPalette>): CSSProperties {
   return {
     background: colors.card,
-    boxShadow: `inset 0 0 0 1px ${colors.divider}`,
-    borderRadius: 10,
+    boxShadow: `inset 0 0 0 1px ${colors.divider}, inset 0 1px 0 rgba(255,255,255,0.05)`,
+    borderRadius: 12,
     padding: "8px 10px",
   };
 }

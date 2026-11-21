@@ -1,6 +1,9 @@
-//! Windows: the app keeps its taskbar entry, and the global shortcut is not
-//! implemented yet (macOS uses ⌘⌥H to show Settings; the tray menu does here).
+//! Windows: the app keeps its taskbar entry, registers Ctrl+Alt+H to open
+//! Settings, and applies Win11 DWM rounded corners & dark borders to frameless
+//! auxiliary windows.
 
+#[path = "windows/hotkey.rs"]
+mod hotkey;
 #[path = "windows/session.rs"]
 mod session;
 
@@ -8,9 +11,44 @@ pub(crate) fn prepare(app: &tauri::AppHandle) -> Result<(), String> {
     session::install(app)
 }
 
-pub(crate) fn install(_app: &tauri::AppHandle) {}
+pub(crate) fn install(app: &tauri::AppHandle) {
+    hotkey::install(app);
+}
 
-pub(crate) fn window_opened(_window: &tauri::WebviewWindow) {}
+pub(crate) fn window_opened(window: &tauri::WebviewWindow) {
+    use windows::Win32::{
+        Foundation::HWND,
+        Graphics::Dwm::{
+            DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_COLOR_DEFAULT,
+            DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+        },
+    };
+    let Ok(raw) = window.hwnd() else {
+        return;
+    };
+    let hwnd = HWND(raw.0 as *mut core::ffi::c_void);
+    let corner = DWMWCP_ROUND.0 as u32;
+    let light = window.theme().ok() == Some(tauri::Theme::Light);
+    let border = if light {
+        DWMWA_COLOR_DEFAULT
+    } else {
+        0x0026_2222u32
+    };
+    unsafe {
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            (&raw const corner).cast(),
+            size_of::<u32>() as u32,
+        );
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_BORDER_COLOR,
+            (&raw const border).cast(),
+            size_of::<u32>() as u32,
+        );
+    }
+}
 
 pub(crate) fn windows_changed(_app: &tauri::AppHandle) {}
 
@@ -25,10 +63,12 @@ pub(crate) fn pointer_monitor(app: &tauri::AppHandle) -> Option<tauri::Monitor> 
     app.monitor_from_point(pointer.x, pointer.y).ok().flatten()
 }
 
+pub(crate) const CUSTOM_CHROME: bool = true;
+
 pub(crate) fn toolbar_chrome<'a>(
     builder: tauri::WebviewWindowBuilder<'a, tauri::Wry, tauri::AppHandle>,
 ) -> tauri::WebviewWindowBuilder<'a, tauri::Wry, tauri::AppHandle> {
-    builder
+    builder.decorations(false).shadow(true)
 }
 
 pub(crate) fn system_languages() -> Vec<String> {

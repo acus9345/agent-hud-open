@@ -232,7 +232,13 @@ export function SmallHUDPreview({
                             color: simpleNumberColor(
                               sample,
                               light,
-                              statusColor(vendor.level),
+                              vendor.level === "stale"
+                                ? light
+                                  ? "#8e8e93"
+                                  : "#71717a"
+                                : light
+                                  ? "#5c5c60"
+                                  : "#a6a6a6",
                             ),
                             fontVariantNumeric: "tabular-nums",
                           }}

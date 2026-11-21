@@ -10,7 +10,7 @@ import type { DayFacts } from "./days";
  * more on a light ground, brighter for more on a dark one. */
 const GREENS = {
   light: ["rgba(0,0,0,.06)", "#c2e7cb", "#7ccb92", "#3a9d57", "#1d6b35"],
-  dark: ["rgba(255,255,255,.06)", "#0e4429", "#006d32", "#26a641", "#39d353"],
+  dark: ["rgba(255,255,255,.055)", "#212e1a", "#354929", "#496237", "#6d9154"],
 };
 
 /** A heatmap level's colour, 0 for none to 4 for most. */

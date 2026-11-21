@@ -45,9 +45,10 @@ pub(crate) fn remember(app: &tauri::AppHandle, settings: &Value) {
 
 pub(crate) fn script(app: &tauri::AppHandle) -> String {
     format!(
-        "{}\ninitializeAppearance({:?});",
+        "{}\ninitializeAppearance({:?}, {});",
         include_str!("../../../packages/app/src/lib/startup-theme-bootstrap.mjs"),
         preference(app).name(),
+        crate::shell::CUSTOM_CHROME,
     )
 }
 
@@ -66,8 +67,9 @@ pub(crate) fn open_initial(
 ) -> Result<(), String> {
     if let Some(config) = config {
         let builder = WebviewWindowBuilder::from_config(app, config).map_err(|e| e.to_string())?;
-        let window = build(app, builder)?;
+        let window = build(app, crate::shell::toolbar_chrome(builder))?;
         if config.visible {
+            crate::shell::window_opened(&window);
             window.show().map_err(|e| e.to_string())?;
         }
     }

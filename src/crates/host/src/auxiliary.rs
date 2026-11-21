@@ -40,7 +40,7 @@ fn show_settings(app: &tauri::AppHandle) -> Result<(), String> {
             // Shown below, once the app has joined the Dock.
             let builder = tauri::WebviewWindowBuilder::from_config(app, config)
                 .map_err(|error| format!("Could not configure the Settings window: {error}"))?;
-            crate::appearance::build(app, builder)
+            crate::appearance::build(app, shell::toolbar_chrome(builder))
                 .map_err(|error| format!("Could not create the Settings window: {error}"))?
         }
     };

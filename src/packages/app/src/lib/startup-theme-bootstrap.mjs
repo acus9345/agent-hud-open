@@ -1,5 +1,5 @@
 // Runs at document creation, before the page's modules and stylesheets.
-function initializeAppearance(appearance) {
+function initializeAppearance(appearance, customChrome) {
   const preference =
     appearance === "light" || appearance === "dark" ? appearance : "system";
   const theme =
@@ -13,6 +13,7 @@ function initializeAppearance(appearance) {
     if (!root) return false;
     root.dataset.initialAppearance = preference;
     root.dataset.theme = theme;
+    if (customChrome === true) root.dataset.customFrame = "true";
     root.classList.toggle("dark", theme === "dark");
     return true;
   };

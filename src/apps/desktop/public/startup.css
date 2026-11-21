@@ -1,7 +1,7 @@
 :root {
-  --startup-background: #282828;
-  --startup-line: #ffffff12;
-  --startup-card: #ffffff06;
+  --startup-background: #111114;
+  --startup-line: rgba(255, 255, 255, 0.07);
+  --startup-card: rgba(255, 255, 255, 0.03);
 }
 :root[data-theme="light"] {
   --startup-background: #f5f5f7;
@@ -28,7 +28,7 @@ body {
 }
 :root[data-startup-surface="picture"],
 :root[data-startup-surface="picture"] body {
-  background: var(--background, #282828);
+  background: var(--background, #111114);
 }
 #startup-shell {
   display: none;

@@ -22,6 +22,8 @@ pub(crate) fn pointer_monitor(app: &tauri::AppHandle) -> Option<tauri::Monitor> 
     app.monitor_from_point(pointer.x, pointer.y).ok().flatten()
 }
 
+pub(crate) const CUSTOM_CHROME: bool = false;
+
 pub(crate) fn toolbar_chrome<'a>(
     builder: tauri::WebviewWindowBuilder<'a, tauri::Wry, tauri::AppHandle>,
 ) -> tauri::WebviewWindowBuilder<'a, tauri::Wry, tauri::AppHandle> {

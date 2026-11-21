@@ -9,6 +9,7 @@ import {
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { Toaster } from "sonner";
+import { ScrollTab, SpringPill } from "@agent-hud/ui/MotionPrimitives";
 import { Tabs, TabsList, TabsTrigger } from "@agent-hud/ui/components/tabs";
 import { TooltipProvider } from "@agent-hud/ui/components/tooltip";
 import type { NativeMethod, Session, Snapshot } from "@agent-hud/protocol";
@@ -17,6 +18,11 @@ import { LoadingState } from "./LoadingState";
 import { ViewErrorBoundary } from "./ViewErrorBoundary";
 import { themeFor } from "./statistics/StatsTheme";
 import { PagePlaceholder } from "./statistics/dashboard/Placeholder";
+import {
+  toggleWindowMaximize,
+  useCustomFrame,
+  WindowControls,
+} from "./WindowControls";
 
 // Statistics does not need the shader/bot renderer, nor the settings panes.
 const Statistics = lazy(() => import("./Statistics"));
@@ -101,29 +107,95 @@ export function StatisticsWindow({
   const placeholder = (
     <PagePlaceholder theme={themeFor(theme === "light", language)} />
   );
+  const customFrame = useCustomFrame();
   return (
     <TooltipProvider>
-      <div className="statistics-window" data-theme={theme}>
-        <header className="statistics-toolbar" data-tauri-drag-region>
+      <div
+        className="statistics-window"
+        data-theme={theme}
+        data-custom-frame={customFrame ? "true" : undefined}
+      >
+        <header
+          className="statistics-toolbar"
+          data-tauri-drag-region
+          onDoubleClick={
+            customFrame
+              ? (event) => {
+                  if (
+                    event.target === event.currentTarget ||
+                    (event.target as HTMLElement).classList.contains(
+                      "statistics-toolbar-spacer",
+                    )
+                  ) {
+                    toggleWindowMaximize();
+                  }
+                }
+              : undefined
+          }
+        >
           <span className="statistics-toolbar-spacer" data-tauri-drag-region />
           <Tabs value={statisticsTab} onValueChange={setStatisticsTab}>
             <TabsList>
-              <TabsTrigger value="tokens">{t("Usage")}</TabsTrigger>
-              <TabsTrigger value="sessions">{t("Sessions")}</TabsTrigger>
+              <TabsTrigger
+                value="tokens"
+                style={{
+                  position: "relative",
+                  background: "transparent",
+                  boxShadow: "none",
+                }}
+              >
+                {statisticsTab === "tokens" && (
+                  <SpringPill
+                    layoutId="statistics-window-tab"
+                    style={{
+                      borderRadius: 5,
+                      background: "var(--segment-selected)",
+                      boxShadow: "0 1px 2px #0002",
+                    }}
+                  />
+                )}
+                <span style={{ position: "relative", zIndex: 1 }}>
+                  {t("Usage")}
+                </span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="sessions"
+                style={{
+                  position: "relative",
+                  background: "transparent",
+                  boxShadow: "none",
+                }}
+              >
+                {statisticsTab === "sessions" && (
+                  <SpringPill
+                    layoutId="statistics-window-tab"
+                    style={{
+                      borderRadius: 5,
+                      background: "var(--segment-selected)",
+                      boxShadow: "0 1px 2px #0002",
+                    }}
+                  />
+                )}
+                <span style={{ position: "relative", zIndex: 1 }}>
+                  {t("Sessions")}
+                </span>
+              </TabsTrigger>
             </TabsList>
           </Tabs>
-          <div>{sourceMenu}</div>
+          <div className="statistics-toolbar-actions">
+            {sourceMenu}
+            {customFrame && (
+              <span className="window-controls-divider" aria-hidden />
+            )}
+            <WindowControls />
+          </div>
         </header>
         {snapshot ? (
           <ViewErrorBoundary onReset={() => setSelectedSession(null)}>
             <Suspense
               fallback={statisticsTab === "tokens" ? placeholder : null}
             >
-              <div
-                style={{
-                  display: statisticsTab === "tokens" ? "block" : "none",
-                }}
-              >
+              <ScrollTab active={statisticsTab === "tokens"}>
                 <Statistics
                   snapshot={snapshot}
                   light={theme === "light"}
@@ -134,12 +206,8 @@ export function StatisticsWindow({
                     setStatisticsTab("sessions");
                   }}
                 />
-              </div>
-              <div
-                style={{
-                  display: statisticsTab === "sessions" ? "block" : "none",
-                }}
-              >
+              </ScrollTab>
+              <ScrollTab active={statisticsTab === "sessions"}>
                 <SessionStatistics
                   snapshot={snapshot}
                   light={theme === "light"}
@@ -148,7 +216,7 @@ export function StatisticsWindow({
                   initialSessionId={selectedSession?.id ?? null}
                   onClearSelection={() => setSelectedSession(null)}
                 />
-              </div>
+              </ScrollTab>
             </Suspense>
           </ViewErrorBoundary>
         ) : !error && statisticsTab === "tokens" ? (

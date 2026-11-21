@@ -11,6 +11,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { CircleHelp } from "lucide-react";
 import { Toaster } from "sonner";
+import { ScrollPage, SpringPill } from "@agent-hud/ui/MotionPrimitives";
 import { Button } from "@agent-hud/ui/components/button";
 import { TooltipProvider } from "@agent-hud/ui/components/tooltip";
 import {
@@ -35,6 +36,11 @@ import { GuideLayer } from "../guide/GuideLayer";
 import type { ProductGuide } from "../guide/plan";
 import { openSettingsSteps } from "../guide/steps";
 import type { SettingsPaneProps } from "./SettingsPrimitives";
+import {
+  toggleWindowMaximize,
+  useCustomFrame,
+  WindowControls,
+} from "../WindowControls";
 
 // A resting HUD does not need the settings panes.
 const SettingsPane = lazy(() => import("../SettingsPanes"));
@@ -139,12 +145,21 @@ export function SettingsWindow({
     return () => void subscription.then((unlisten) => unlisten());
   }, []);
   const currentPage = allPages.find((item) => item.id === page);
+  const customFrame = useCustomFrame();
   return (
     <SettingsNavigation.Provider value={go}>
       <TooltipProvider delayDuration={400}>
-        <div className="apple-app" data-theme={theme}>
+        <div
+          className="apple-app"
+          data-theme={theme}
+          data-custom-frame={customFrame ? "true" : undefined}
+        >
           <aside className="apple-sidebar">
-            <div className="sidebar-drag-space" data-tauri-drag-region />
+            <div
+              className="sidebar-drag-space"
+              data-tauri-drag-region
+              onDoubleClick={customFrame ? toggleWindowMaximize : undefined}
+            />
             <nav aria-label={t("Settings")}>
               {pageGroups.map((group) => {
                 const items = allPages.filter((item) => item.group === group);
@@ -153,23 +168,39 @@ export function SettingsWindow({
                   <div className="sidebar-group" key={group}>
                     {items.map((item) => {
                       const { id, label, icon: Icon, color } = item;
+                      const selected = page === id;
                       return (
                         <Button
                           key={id}
                           variant="ghost"
-                          className={`apple-navigation ${page === id ? "is-selected" : ""}`}
+                          className={`apple-navigation ${selected ? "is-selected" : ""}`}
                           onClick={() => go(id)}
-                          aria-current={page === id ? "page" : undefined}
+                          aria-current={selected ? "page" : undefined}
                         >
+                          {selected && (
+                            <SpringPill
+                              layoutId="settings-sidebar-active"
+                              style={{
+                                borderRadius: 7,
+                                background: "var(--primary)",
+                              }}
+                            />
+                          )}
                           <span
                             className="sidebar-symbol"
-                            style={{ background: color }}
+                            style={{
+                              position: "relative",
+                              zIndex: 1,
+                              background: color,
+                            }}
                           >
                             {item.customIcon ?? (
                               <Icon size={13} strokeWidth={1.9} />
                             )}
                           </span>
-                          <span>{label}</span>
+                          <span style={{ position: "relative", zIndex: 1 }}>
+                            {label}
+                          </span>
                         </Button>
                       );
                     })}
@@ -189,12 +220,24 @@ export function SettingsWindow({
             </div>
           </aside>
           <main className="apple-content">
+            {customFrame && (
+              <div
+                className="settings-window-bar"
+                data-tauri-drag-region
+                onDoubleClick={toggleWindowMaximize}
+              >
+                <span className="settings-window-drag" data-tauri-drag-region />
+                <WindowControls />
+              </div>
+            )}
             <div className="settings-header" data-tauri-drag-region="deep">
               <div className="settings-column">
-                <h1>{currentPage?.label}</h1>
-                {currentPage?.description ? (
-                  <p>{currentPage.description}</p>
-                ) : null}
+                <ScrollPage pageKey={page}>
+                  <h1>{currentPage?.label}</h1>
+                  {currentPage?.description ? (
+                    <p>{currentPage.description}</p>
+                  ) : null}
+                </ScrollPage>
               </div>
             </div>
             <div className="settings-scroll">
@@ -222,28 +265,30 @@ export function SettingsWindow({
                 ) : (
                   // A page that fails to draw shows its error under its own
                   // header; the sidebar stays, and another page clears it.
-                  <ViewErrorBoundary key={page}>
-                    <Suspense fallback={null}>
-                      {extensionPages
-                        .find((item) => item.id === page)
-                        ?.render({ snapshot, request: extensionRequest })}
-                      <SettingsPane
-                        page={page}
-                        settingsProps={settingsProps}
-                        ready={ready}
-                        selectedId={selectedId}
-                        monitors={monitors}
-                        selectScreen={selectScreen}
-                        layout={layout}
-                        onLayout={onLayout}
-                        preferences={preferences}
-                        onPreferences={onPreferences}
-                        agentPlugins={agentPlugins}
-                        request={extensionRequest}
-                        agent={agent}
-                      />
-                    </Suspense>
-                  </ViewErrorBoundary>
+                  <ScrollPage pageKey={page}>
+                    <ViewErrorBoundary key={page}>
+                      <Suspense fallback={null}>
+                        {extensionPages
+                          .find((item) => item.id === page)
+                          ?.render({ snapshot, request: extensionRequest })}
+                        <SettingsPane
+                          page={page}
+                          settingsProps={settingsProps}
+                          ready={ready}
+                          selectedId={selectedId}
+                          monitors={monitors}
+                          selectScreen={selectScreen}
+                          layout={layout}
+                          onLayout={onLayout}
+                          preferences={preferences}
+                          onPreferences={onPreferences}
+                          agentPlugins={agentPlugins}
+                          request={extensionRequest}
+                          agent={agent}
+                        />
+                      </Suspense>
+                    </ViewErrorBoundary>
+                  </ScrollPage>
                 )}
               </div>
             </div>

@@ -118,12 +118,12 @@ export function themeFor(light: boolean, language: Language): Theme {
         cache: "#31c3b5",
         cacheWrite: "#b699eb",
         reasoning: "#e38ab5",
-        accent: "#4ade80",
-        warning: "#eab308",
+        accent: "#5b7a45",
+        warning: "#d98a5b",
         compaction: "#f59e0b",
         action: "#0a84ff",
         pick: "rgba(255,255,255,.07)",
-        surface: "#333",
+        surface: "#16161b",
       };
 }
 
@@ -134,9 +134,9 @@ export function kindColor(theme: Theme, kind: TokenKindName): string {
 
 export function card(theme: Theme, padding = "12px 14px"): CSSProperties {
   return {
-    borderRadius: 10,
+    borderRadius: 14,
     border: `1px solid ${theme.border}`,
-    boxShadow: "none",
+    boxShadow: theme.light ? "none" : "inset 0 1px 0 rgba(255,255,255,0.045)",
     padding,
     gap: 8,
     minWidth: 0,

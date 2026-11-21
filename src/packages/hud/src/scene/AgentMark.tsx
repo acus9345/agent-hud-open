@@ -1,11 +1,14 @@
 import type { MutableRefObject } from "react";
+import { motion } from "motion/react";
+import { SNAP_SPRING } from "@agent-hud/ui/lib/motion";
 import { quotaDisplayLabel } from "@agent-hud/ui/format";
 import { useFormat } from "@agent-hud/ui/format-context";
 import { BotMark } from "../BotMark";
 import { botState, facingFromEdge, isAttention } from "../bots/bot-state";
 import type { DockMemory, Direction } from "../bots/mark-director";
 import { horizontal, type HUDRect, type StripMetrics } from "../geometry";
-import { useMarkLevelText } from "../ground";
+import { useGround } from "../ground";
+import { barValueText } from "../tokens";
 import {
   markUsed,
   meterLabel,
@@ -71,8 +74,7 @@ export function AgentMark({
 }) {
   const format = useFormat();
   const { quotaDisplay } = format;
-  // A ring's figure is text: on a see-through ground, its level's see-through shade.
-  const figureColor = useMarkLevelText(light);
+  const ground = useGround(light);
   const parts =
     compact === undefined ? null : compactMark(compact, metrics, reduceMotion);
   const bars = config.mode === "simple" && metrics.bar > 0 && (
@@ -90,7 +92,15 @@ export function AgentMark({
     (config.showsNumbers || config.simpleStyle === "numbers") && (
       <span
         style={{
-          color: simpleNumberColor(config, light, figureColor(vendor.level)),
+          color: simpleNumberColor(
+            config,
+            light,
+            vendor.level === "stale"
+              ? light
+                ? "#8e8e93"
+                : "#71717a"
+              : barValueText(ground),
+          ),
           fontSize: metrics.font,
           fontWeight: 400,
           fontVariantNumeric: "tabular-nums",
@@ -102,11 +112,24 @@ export function AgentMark({
         {meterLabel(vendor, quotaDisplay)}
       </span>
     );
+  const hoverLift =
+    reduceMotion || dragVisual
+      ? undefined
+      : edge === "top"
+        ? { y: 2, scale: 1.08 }
+        : edge === "bottom"
+          ? { y: -2, scale: 1.08 }
+          : edge === "left"
+            ? { x: 2, scale: 1.08 }
+            : { x: -2, scale: 1.08 };
   return (
-    <button
+    <motion.button
       type="button"
       className="hud-agent-mark"
       aria-label={`${vendor.name}, ${meterLabel(vendor, quotaDisplay)} ${markUsed(vendor) == null ? "" : quotaDisplayLabel(quotaDisplay, format.language)}`}
+      whileHover={hoverLift}
+      whileTap={reduceMotion || dragVisual ? undefined : { scale: 0.94 }}
+      transition={SNAP_SPRING}
       onPointerEnter={() => {
         if (hovered !== vendor.key) {
           setHovered(vendor.key);
@@ -251,6 +274,6 @@ export function AgentMark({
           )
         : bars}
       {!parts && figure}
-    </button>
+    </motion.button>
   );
 }

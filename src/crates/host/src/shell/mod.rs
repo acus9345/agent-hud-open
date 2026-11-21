@@ -21,5 +21,5 @@ mod host;
 mod host;
 pub(crate) use host::{
     alert, clip_shortcut, install, pointer_monitor, prepare, reopened, system_languages,
-    toolbar_chrome, window_opened, windows_changed, CLIP_SHORTCUT,
+    toolbar_chrome, window_opened, windows_changed, CLIP_SHORTCUT, CUSTOM_CHROME,
 };

@@ -34,7 +34,7 @@ impl Preference {
         if self.light(system_light) {
             (245, 245, 247, 255)
         } else {
-            (40, 40, 40, 255)
+            (17, 17, 20, 255)
         }
     }
 }
@@ -50,7 +50,7 @@ mod tests {
         assert_eq!(light.background(false), (245, 245, 247, 255));
         let dark = Preference::parse(Some("dark"));
         assert_eq!(dark.name(), "dark");
-        assert_eq!(dark.background(true), (40, 40, 40, 255));
+        assert_eq!(dark.background(true), (17, 17, 20, 255));
     }
 
     #[test]
@@ -59,7 +59,7 @@ mod tests {
             let preference = Preference::parse(saved);
             assert_eq!(preference.name(), "system");
             assert_eq!(preference.background(true), (245, 245, 247, 255));
-            assert_eq!(preference.background(false), (40, 40, 40, 255));
+            assert_eq!(preference.background(false), (17, 17, 20, 255));
         }
     }
 }

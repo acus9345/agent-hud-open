@@ -98,7 +98,7 @@ export const plain: CSSProperties = {
 };
 
 export const card = (theme: StatsTheme): CSSProperties => ({
-  borderRadius: 10,
+  borderRadius: 14,
   border: `1px solid ${theme.border}`,
   background: `var(--statistics-card, ${theme.card})`,
   boxShadow: "none",
@@ -107,6 +107,52 @@ export const card = (theme: StatsTheme): CSSProperties => ({
   gap: 10,
   minWidth: 0,
 });
+
+export type SurfaceTier = "primary" | "secondary" | "plain";
+
+/** Three-tier surface styling: elevated hero (primary), recessed tonal card (secondary), or borderless (plain). */
+export const surfaceStyle = (
+  theme: StatsTheme,
+  tier: SurfaceTier,
+): CSSProperties => {
+  if (tier === "primary") {
+    return {
+      borderRadius: 16,
+      border: theme.light
+        ? "1px solid rgba(0,0,0,0.08)"
+        : "1px solid rgba(255,255,255,0.085)",
+      background: theme.light
+        ? "#ffffff"
+        : "linear-gradient(180deg, #1b1b21 0%, #15151a 100%)",
+      boxShadow: theme.light
+        ? "0 6px 20px rgba(0,0,0,0.06)"
+        : "0 0 0 1px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.085), 0 10px 28px rgba(0,0,0,0.34)",
+      color: "inherit",
+      minWidth: 0,
+    };
+  }
+  if (tier === "secondary") {
+    return {
+      borderRadius: 14,
+      border: theme.light
+        ? "1px solid rgba(0,0,0,0.055)"
+        : "1px solid rgba(255,255,255,0.062)",
+      background: theme.light ? "rgba(255,255,255,0.72)" : "#15151a",
+      boxShadow: theme.light ? "none" : "inset 0 1px 0 rgba(255,255,255,0.045)",
+      color: "inherit",
+      minWidth: 0,
+    };
+  }
+  return {
+    borderRadius: 0,
+    border: 0,
+    background: "transparent",
+    boxShadow: "none",
+    padding: "4px 2px",
+    color: "inherit",
+    minWidth: 0,
+  };
+};
 
 /**
  * A box raised off the page, such as a hover card (Open's `raisedBox`): the
@@ -146,16 +192,16 @@ export function themeFor(light: boolean, lang: Language = "en"): StatsTheme {
     : {
         light,
         language: lang,
-        ground: "#282828",
+        ground: "#111114",
         text: "#f5f5f7",
-        secondary: "#98989d",
-        tertiary: "#6e6e73",
-        card: "rgba(255,255,255,.05)",
-        border: "rgba(255,255,255,.12)",
-        divider: "rgba(255,255,255,.10)",
-        track: "rgba(255,255,255,.12)",
-        segment: "rgba(255,255,255,.08)",
-        selected: "rgba(255,255,255,.24)",
+        secondary: "#a1a1aa",
+        tertiary: "#71717a",
+        card: "#15151a",
+        border: "rgba(255,255,255,0.072)",
+        divider: "rgba(255,255,255,0.06)",
+        track: "rgba(255,255,255,.10)",
+        segment: "rgba(255,255,255,.06)",
+        selected: "rgba(255,255,255,.18)",
       };
 }
 
