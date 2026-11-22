@@ -11,6 +11,25 @@ type Action = (
   params?: Record<string, unknown>,
 ) => Promise<unknown>;
 
+/** Whether the last answer is outdated for the current query params and filters.
+ * False when `answered.key === key` (e.g. `today` and `7d` share the same 7-day
+ * quota span) or when only the clock moved (`answered.filters === asked`). */
+export function isCoreQueryPending(
+  active: boolean,
+  answered: { key: string; filters: string } | null,
+  key: string,
+  asked: string,
+  error: string | null,
+): boolean {
+  return (
+    active &&
+    answered !== null &&
+    answered.key !== key &&
+    answered.filters !== asked &&
+    error === null
+  );
+}
+
 /** Core's answer to `method` with `params` while `active`, asked again when
  * `refresh` changes. The last answer stays while new params are asked,
  * flagged `pending`. An answer to other params is dropped. A new `refresh`
@@ -33,8 +52,9 @@ export function useCoreQuery<T>(
   const actionRef = useRef(action);
   actionRef.current = action;
   const [data, setData] = useState<T | null>(null);
-  // The filters `data` answers, and how long the last answer took.
+  // The params and filters `data` answers, and how long the last answer took.
   const [answered, setAnswered] = useState<{
+    key: string;
     filters: string;
     ms: number;
   } | null>(null);
@@ -102,7 +122,11 @@ export function useCoreQuery<T>(
         if (!same()) return;
         retries.current = { sig, count: 0 };
         setData(value as T);
-        setAnswered({ filters: request.asked, ms: Date.now() - started });
+        setAnswered({
+          key: request.key,
+          filters: wanted.current.asked,
+          ms: Date.now() - started,
+        });
         setFailure(null);
       })
       .catch((error: unknown) => {
@@ -157,12 +181,9 @@ export function useCoreQuery<T>(
     error,
     fetching,
     /** `data` answers older filters and the answer to these is still out.
-     * False before the first answer, and while only the clock moved. */
-    pending:
-      active &&
-      answered !== null &&
-      answered.filters !== asked &&
-      error === null,
+     * False before the first answer, when params are unchanged, and while only
+     * the clock moved. */
+    pending: isCoreQueryPending(active, answered, key, asked, error),
     /** How long the last answer took, ms: what the next is expected to. */
     expected: answered?.ms ?? null,
   };

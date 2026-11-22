@@ -16,6 +16,7 @@ import {
   quartileLevels,
   type Day,
 } from "../src/statistics/dashboard/days.ts";
+import { isCoreQueryPending } from "../src/lib/use-core-query.ts";
 
 const tokens = (input: number, cacheRead = 0) => ({
   input,
@@ -194,4 +195,39 @@ test("the day facts count active days, the busiest and the runs, today still ope
   assert.equal(facts.streak, 2);
   assert.equal(facts.longest, 2);
   assert.equal(facts.average, 4.5);
+});
+
+test("core query is not stuck pending when range label changes but params stay identical", () => {
+  const answered = {
+    key: '{"from":"2026-11-16T00:00:00.000Z","to":"2026-11-22T12:00:00.000Z"}',
+    filters: "today",
+  };
+  // Switching today -> 7d keeps the same 7-day quota span key, so no refetch
+  // occurs and pending must stay false instead of freezing the wash animation.
+  assert.equal(
+    isCoreQueryPending(true, answered, answered.key, "7d", null),
+    false,
+  );
+  // Clock moving end timestamp without a filter change stays non-pending.
+  assert.equal(
+    isCoreQueryPending(
+      true,
+      answered,
+      '{"from":"2026-11-16T00:00:00.000Z","to":"2026-11-22T12:05:00.000Z"}',
+      "today",
+      null,
+    ),
+    false,
+  );
+  // Switching to 30d changes both key and filter, so pending turns on.
+  assert.equal(
+    isCoreQueryPending(
+      true,
+      answered,
+      '{"from":"2026-10-24T00:00:00.000Z","to":"2026-11-22T12:00:00.000Z"}',
+      "30d",
+      null,
+    ),
+    true,
+  );
 });

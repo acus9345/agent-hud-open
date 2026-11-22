@@ -1,0 +1,30 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer segmented quota ring (Sage + Terracotta) -->
+    <path
+        android:pathData="M54,24 A30,30 0 1,1 26.8,66.7"
+        android:strokeWidth="6.5"
+        android:strokeColor="#FF5B7A45"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M24.9,59.5 A30,30 0 0,1 46.8,24.9"
+        android:strokeWidth="6.5"
+        android:strokeColor="#FFC84B3C"
+        android:strokeLineCap="round" />
+    <!-- Inner HUD pill core -->
+    <path
+        android:fillColor="#FFF5F5F7"
+        android:pathData="M42,48h24a6,6 0,0 1,6 6v0a6,6 0,0 1,-6 6h-24a6,6 0,0 1,-6 -6v0a6,6 0,0 1,6 -6z" />
+    <path
+        android:fillColor="#FF5B7A45"
+        android:pathData="M45,54m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
+    <path
+        android:fillColor="#FF111114"
+        android:pathData="M54,54m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
+    <path
+        android:fillColor="#FFC84B3C"
+        android:pathData="M63,54m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
+</vector>

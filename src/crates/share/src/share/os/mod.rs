@@ -12,4 +12,4 @@ mod host;
 #[path = "linux.rs"]
 mod host;
 pub use host::computer_name;
-pub(crate) use host::secrets;
+pub(crate) use host::{configure_background_command, secrets};

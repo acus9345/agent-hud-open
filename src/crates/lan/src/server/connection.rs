@@ -149,11 +149,12 @@ pub(super) fn connection<R: Record>(
             remember_peer(shared, &request, address, &authorization, false);
         }
         return match handled.body {
-            Some(body) => reply(
-                handled.status,
-                &[("Content-Type", "application/json".into())],
-                body.to_string().as_bytes(),
-            ),
+            Some(body) => {
+                let (body, encoding) = encode_body(&request, body.to_string().into_bytes());
+                let mut headers = vec![("Content-Type", "application/json".into())];
+                headers.extend(encoding);
+                reply(handled.status, &headers, &body)
+            }
             None => reply(handled.status, &[], &[]),
         };
     }

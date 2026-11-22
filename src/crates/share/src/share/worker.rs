@@ -1,7 +1,7 @@
 //! The share's thread. It starts and stops the LAN link with the page's
 //! switch, projects each snapshot into records, reads the ledger's usage at
 //! most every 30 seconds once it has moved, and publishes what changed.
-use super::{settings::Settings, Command, Query};
+use super::{relay, settings::Settings, Command, Query};
 use crate::{keys, projection, SyncRecord};
 use agent_hud_lan::{
     cache::SnapshotCache,
@@ -27,6 +27,7 @@ const RETENTION_MS: i64 = 30 * keys::DAY_MS;
 pub(super) struct Worker {
     directory: PathBuf,
     query: Query,
+    extension: crate::LanExtension,
     secrets: Option<Arc<dyn SecretStore>>,
     settings: Settings,
     name: String,
@@ -43,16 +44,30 @@ pub(super) struct Worker {
     usage_full_revision: Option<u64>,
     usage_full_at: i64,
     address_at: i64,
+    relay: relay::RelayTunnel,
     error: Option<String>,
 }
 impl Worker {
-    pub fn new(directory: PathBuf, query: Query) -> Result<Self, String> {
-        Self::with_secrets(directory, query, super::os::secrets())
+    pub fn new_with_extension(
+        directory: PathBuf,
+        query: Query,
+        extension: crate::LanExtension,
+    ) -> Result<Self, String> {
+        Self::with_secrets_and_extension(directory, query, super::os::secrets(), extension)
     }
+    #[cfg(test)]
     pub(super) fn with_secrets(
         directory: PathBuf,
         query: Query,
         secrets: Option<Arc<dyn SecretStore>>,
+    ) -> Result<Self, String> {
+        Self::with_secrets_and_extension(directory, query, secrets, Arc::new(|_, _| Ok(None)))
+    }
+    fn with_secrets_and_extension(
+        directory: PathBuf,
+        query: Query,
+        secrets: Option<Arc<dyn SecretStore>>,
+        extension: crate::LanExtension,
     ) -> Result<Self, String> {
         let settings = Settings::load(&directory)?;
         let name = super::computer_name();
@@ -65,6 +80,7 @@ impl Worker {
         Ok(Self {
             directory,
             query,
+            extension,
             secrets,
             settings,
             name,
@@ -79,6 +95,7 @@ impl Worker {
             usage_full_revision: None,
             usage_full_at: 0,
             address_at: 0,
+            relay: relay::RelayTunnel::default(),
             error: None,
         })
     }
@@ -105,6 +122,7 @@ impl Worker {
                 self.error = Some(error);
             }
         }
+        self.relay.stop();
         if let Some(mut lan) = self.lan.take() {
             let _ = lan.stop(false);
         }
@@ -130,8 +148,7 @@ impl Worker {
             credentials,
             self.cache.clone(),
             identity,
-            // Phones only read here: no route beyond the link's own.
-            Arc::new(|_, _| Ok(None)),
+            self.extension.clone(),
         );
         let port = lan.start(self.settings.port)?;
         if self.settings.port != port {
@@ -144,10 +161,24 @@ impl Worker {
     }
     /// Turning sharing off disconnects the phones and revokes their grants.
     fn stop_lan(&mut self) -> Result<(), String> {
+        self.relay.stop();
         match self.lan.take() {
             Some(mut lan) => lan.stop(true),
             None => Credentials::revoke_saved(&self.directory),
         }
+    }
+    fn refresh_lan_addresses(&mut self) {
+        let Some(lan) = &self.lan else {
+            return;
+        };
+        let include_overlay = self.settings.remote.mode == "tailscale";
+        let extras =
+            if self.settings.remote.mode == "relay" && !self.settings.remote.relay_url.is_empty() {
+                vec![self.settings.remote.relay_url.clone()]
+            } else {
+                Vec::new()
+            };
+        lan.refresh_address_with_extras(include_overlay, &extras);
     }
     pub(super) fn request(
         &mut self,
@@ -182,6 +213,32 @@ impl Worker {
                 }
                 Ok(self.status())
             }
+            "set_remote" => {
+                let mode = params["mode"]
+                    .as_str()
+                    .unwrap_or(&self.settings.remote.mode);
+                let relay_url = params["relayUrl"]
+                    .as_str()
+                    .unwrap_or(&self.settings.remote.relay_url);
+                let ssh_target = params["sshTarget"]
+                    .as_str()
+                    .unwrap_or(&self.settings.remote.ssh_target);
+                let remote_port = params["remotePort"]
+                    .as_u64()
+                    .and_then(|n| u16::try_from(n).ok())
+                    .unwrap_or(self.settings.remote.remote_port);
+                let validated = relay::validate_remote(mode, relay_url, ssh_target, remote_port)?;
+                self.settings.remote = validated;
+                self.settings.save(&self.directory)?;
+                self.refresh_lan_addresses();
+                self.relay.sync(
+                    self.lan.is_some(),
+                    self.settings.port,
+                    &self.settings.remote,
+                    now,
+                );
+                Ok(self.status())
+            }
             _ => Err(format!("Unknown phone sharing request: {method}")),
         }
     }
@@ -195,16 +252,27 @@ impl Worker {
         status["on"] = json!(self.settings.enabled);
         status["name"] = json!(self.name);
         status["error"] = json!(self.error);
+        status["remote"] = json!({
+            "mode": self.settings.remote.mode,
+            "relayUrl": self.settings.remote.relay_url,
+            "sshTarget": self.settings.remote.ssh_target,
+            "remotePort": self.settings.remote.remote_port,
+            "state": self.relay.state,
+            "error": self.relay.error,
+        });
         status
     }
     fn pass(&mut self, now: i64) -> Result<(), String> {
-        let Some(lan) = &self.lan else {
+        if self.lan.is_none() {
+            self.relay.sync(false, 0, &self.settings.remote, now);
             return Ok(());
-        };
+        }
         if now - self.address_at >= ADDRESS_EVERY_MS {
             self.address_at = now;
-            lan.refresh_address();
+            self.refresh_lan_addresses();
         }
+        self.relay
+            .sync(true, self.settings.port, &self.settings.remote, now);
         self.project(now)?;
         self.cache
             .lock()

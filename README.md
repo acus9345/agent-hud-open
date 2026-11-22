@@ -29,7 +29,22 @@
 
 <p align="center">If Agent HUD is useful to you, a star helps other people find it.</p>
 
-Your agents work on your Mac. Agent HUD brings their progress to you. Check where they are at a glance, pick up a conversation, make the next decision: at your desk, and after you leave it.
+Your agents work on your computer. Agent HUD brings their progress to you. Check where they are at a glance, pick up a conversation, make the next decision: at your desk, and after you leave it.
+
+## Differences from upstream (`jazzenchen/agent-hud-open`)
+
+This fork ([acus9345/agent-hud-open](https://github.com/acus9345/agent-hud-open)) builds on top of upstream Agent HUD with a native Android companion app, off-LAN encrypted relay support, Windows desktop polish, and agent-messaging improvements while staying 100% compatible with the official iOS app's `/v1/*` sync protocol.
+
+| Area | Upstream `agent-hud-open` | This fork (`acus9345/agent-hud-open`) |
+| --- | --- | --- |
+| **Android companion app** | iPhone & Apple Watch only | Native Kotlin + Jetpack Compose Android app ([`src/apps/android`](src/apps/android/README.md)) with full iOS feature parity: Home (greeting, circular provider quota rings, inline approvals, weekly stacked chart), Stats (token-kind filters, stacked-by-model bars, Today/7d/30d breakdowns), Sessions (transcripts with Markdown rendering, file/photo attachments up to 20 MB, voice dictation, remote session launching, inter-agent Messages feed), Jetpack Glance Home Screen Widget, and ongoing Live Monitor notification with inline **Allow / Deny** actions. |
+| **Android icons, motions & PC sync** | — | Bundles all 29 official provider icons, smooth spring/breathing/chart/tab motions, and automatically mirrors your PC's HUD visibility, ordering, hidden quota rows, and `quotaDisplay` (`consumed` vs `remaining`) settings from `presentation.json`. |
+| **Off-LAN mobile access** | iCloud Remote (macOS + iOS) or local LAN / Tailscale | Adds a **Remote access** picker in both Desktop (**Settings → Local Network**) and Android (**Settings**) letting users choose **LAN only**, **Tailscale**, or **TLS-passthrough relay** (with built-in background SSH reverse-tunnel supervision and optional fallback-IP SNI routing — end-to-end pinned TLS with zero plaintext on the relay server). |
+| **Desktop LAN companion API** | Read-only `/v1/snapshot`, `/v1/changes`, `/v1/events` | Adds authorized `/v1/companion/*` extension routes (`state`, `session-detail`, `approval`, `send`, chunked `upload`) alongside the untouched `/v1/*` iOS feed, with gzip compression on extension JSON responses. |
+| **Visual theme & Win11 chrome** | Default palette with yellow warning bars | Unified **Obsidian / Sage / Terracotta** dark palette (`#0B0B0E`/`#111114`, `#5B7A45` sage, `#C84B3C` terracotta — no harsh yellow), Windows 11 DWM frameless chrome, global hotkey, clean deduplicated quota labels, and scroll-unfurl motions. |
+| **Hover panel & scrolling on Windows** | Inactive hover-panel wheel events could stall | Fixes hover-panel scrolling and adds Windows inactive-window wheel capture (`wheel.rs`), plus proximity-adaptive pointer polling, `ClockContext` decoupling, and lazy-loaded windows. |
+| **Statistics dashboard** | Standard range/quota view | 3-tier Statistics dashboard and a fix in `useCoreQuery` preventing the card loading-wash animation from freezing at 94% when switching between ranges that share the same quota span (`today` ↔ `7d`). |
+| **Inter-agent messaging** | Basic `send_message` / `start_session` | Adds a dedicated **Sessions → Agent Messages** feed and per-session message history, plus `peek_session`, `expect_reply`, filtered `list_sessions`, and event-driven collector wakes. |
 
 ## Install
 
@@ -308,6 +323,15 @@ pnpm run build:macos -- --bundle
 ```
 
 Use `build:windows` or `build:linux` on those systems; each command builds only for the system it runs on. Tauri writes the app under `target/release/bundle`. To try the app without any agents, start it with `--demo`, which opens it on sample data.
+
+**Android companion app:** Requires JDK 21 and Android SDK (API 35).
+
+```sh
+cd src/apps/android
+./gradlew testDebugUnitTest assembleDebug
+```
+
+The installable APK is written to `src/apps/android/app/build/outputs/apk/debug/app-debug.apk` (or download it directly from [Releases](https://github.com/acus9345/agent-hud-open/releases)).
 
 **A patched Tao.** On macOS the HUD has to be a panel that never takes focus from the app you are using, and upstream Tao cannot create one yet ([tao#414](https://github.com/tauri-apps/tao/issues/414)). Until it can, the workspace takes `tao` from [a public fork](https://github.com/jazzenchen/tao/tree/agent-hud/nonactivating-panel) with one small commit on top of 0.37.1, pinned by revision in `Cargo.toml`; Cargo fetches it from GitHub on the first build. What the commit changes, and how to move it to a new Tao release: [Tao patch](docs/tao-panel-patch.md).
 

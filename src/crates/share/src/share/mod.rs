@@ -3,6 +3,7 @@
 //! the consumers usage names. The host hands it snapshots and the settings
 //! page's requests; nothing here waits on the collector.
 mod os;
+mod relay;
 mod settings;
 mod worker;
 
@@ -46,7 +47,16 @@ impl PhoneShare {
     /// identity, the paired phones' grants and the page's switch; sharing
     /// itself starts only once that switch is on.
     pub fn start(directory: PathBuf, query: Query) -> Result<Self, String> {
-        let mut worker = worker::Worker::new(directory, query)?;
+        Self::start_with_extension(directory, query, Arc::new(|_, _| Ok(None)))
+    }
+    /// Starts the share's thread with extra authorized LAN routes mounted
+    /// alongside `/v1/snapshot`, `/v1/changes` and `/v1/events`.
+    pub fn start_with_extension(
+        directory: PathBuf,
+        query: Query,
+        extension: crate::LanExtension,
+    ) -> Result<Self, String> {
+        let mut worker = worker::Worker::new_with_extension(directory, query, extension)?;
         let (commands, inbox) = mpsc::channel();
         let thread = std::thread::Builder::new()
             .name("agenthud-share".into())

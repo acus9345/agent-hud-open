@@ -17,6 +17,10 @@ import {
   Unavailable,
 } from "./SettingsControls";
 import { usePending } from "./use-pending";
+import {
+  RemoteAccessSection,
+  type RemoteAccessStatus,
+} from "./RemoteAccessSection";
 
 interface Peer {
   id: string;
@@ -34,6 +38,7 @@ interface ShareStatus {
   alternateEndpoints?: string[];
   pairedClients: number;
   peers: Peer[];
+  remote?: RemoteAccessStatus;
   error?: string | null;
 }
 interface Invitation {
@@ -92,8 +97,10 @@ export function LocalNetworkPane({ action, active = true }: SettingsPaneProps) {
   const addresses = status.endpoint
     ? [
         status.endpoint,
-        ...(status.alternateEndpoints ?? []).map(
-          (address) => `Tailscale ${address}`,
+        ...(status.alternateEndpoints ?? []).map((address) =>
+          status.remote?.mode === "relay" && address === status.remote.relayUrl
+            ? `Relay ${address}`
+            : `Tailscale ${address}`,
         ),
       ].join(" · ")
     : status.on
@@ -132,6 +139,16 @@ export function LocalNetworkPane({ action, active = true }: SettingsPaneProps) {
         />
         <Row title={t("Connection")} detail={addresses} />
       </Section>
+      {status.remote && (
+        <RemoteAccessSection
+          remote={status.remote}
+          pending={pending}
+          onSave={(next) => {
+            setInvitation(null);
+            void perform(() => share("set_remote", next));
+          }}
+        />
+      )}
       <Section
         title={t("Pair a device")}
         footer={t(

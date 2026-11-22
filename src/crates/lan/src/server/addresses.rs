@@ -7,12 +7,34 @@ use std::sync::PoisonError;
 
 impl<R: Record + Send + 'static> LanServer<R> {
     pub fn refresh_address(&self) -> bool {
+        self.refresh_address_with_extras(true, &[])
+    }
+    /// Refreshes LAN and optional overlay (Tailscale) / TLS-passthrough relay
+    /// endpoints advertised in pairing invitations and status.
+    pub fn refresh_address_with_extras(
+        &self,
+        include_overlay: bool,
+        extra_alternates: &[String],
+    ) -> bool {
         let (endpoint, alternates) = match self.port {
-            Some(port) => endpoints(
-                &crate::os::addresses(),
-                &crate::os::overlay_addresses(),
-                port,
-            ),
+            Some(port) => {
+                let overlay = if include_overlay {
+                    crate::os::overlay_addresses()
+                } else {
+                    Vec::new()
+                };
+                let (ep, mut alts) = endpoints(&crate::os::addresses(), &overlay, port);
+                for extra in extra_alternates {
+                    let trimmed = extra.trim().trim_end_matches('/').to_owned();
+                    if trimmed.starts_with("https://")
+                        && ep.as_deref() != Some(trimmed.as_str())
+                        && !alts.contains(&trimmed)
+                    {
+                        alts.push(trimmed);
+                    }
+                }
+                (ep, alts)
+            }
             None => (None, Vec::new()),
         };
         self.set_endpoints(endpoint, alternates)

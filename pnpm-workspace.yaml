@@ -3,6 +3,8 @@ packages:
   - src/packages/*
   # Published to npm on its own as @agenthud/install, with no dependencies.
   - "!src/apps/installer"
+  # Native Android Gradle app (Kotlin + Jetpack Compose).
+  - "!src/apps/android"
 
 # One version of each shared dependency for every package. A package names
 # it with "catalog:" instead of a version.

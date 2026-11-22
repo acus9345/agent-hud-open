@@ -9,3 +9,4 @@ pub fn computer_name() -> String {
 pub(crate) fn secrets() -> Option<Arc<dyn SecretStore>> {
     None
 }
+pub(crate) fn configure_background_command(_command: &mut std::process::Command) {}

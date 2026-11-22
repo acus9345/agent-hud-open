@@ -11,6 +11,7 @@ pub fn computer_name() -> String {
 pub(crate) fn secrets() -> Option<Arc<dyn SecretStore>> {
     Some(Arc::new(KeychainSecrets))
 }
+pub(crate) fn configure_background_command(_command: &mut std::process::Command) {}
 
 fn configured_name() -> Option<String> {
     use core_foundation::{

@@ -77,6 +77,8 @@ impl Service {
             share_directory,
             extension.as_deref(),
             Arc::downgrade(&backend),
+            Arc::clone(&latest_snapshot),
+            Arc::clone(&wake),
         );
         backend.lock().unwrap_or_else(PoisonError::into_inner).share = share.clone();
         if let Some(product) = &extension {

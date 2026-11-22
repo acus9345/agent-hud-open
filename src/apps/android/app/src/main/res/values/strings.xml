@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Agent HUD</string>
+    <string name="widget_label">Agent HUD Quotas</string>
+    <string name="widget_description">Live AI agent quotas, active sessions, and pending approvals from your desktop.</string>
+    <string name="notification_channel_live">Live Monitor</string>
+    <string name="notification_channel_approvals">Agent Approvals</string>
+</resources>

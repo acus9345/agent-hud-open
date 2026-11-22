@@ -1,8 +1,40 @@
 //! What the share keeps between launches beside the LAN link's own files:
-//! its switch, the port phones were paired on, and this computer's sharing
-//! identifier.
+//! its switch, the port phones were paired on, this computer's sharing
+//! identifier, and off-LAN remote access settings (Tailscale or TLS-passthrough relay).
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+
+fn default_remote_mode() -> String {
+    "tailscale".into()
+}
+fn default_remote_port() -> u16 {
+    4499
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub(crate) struct RemoteSettings {
+    /// "lan" | "tailscale" | "relay"
+    #[serde(default = "default_remote_mode")]
+    pub mode: String,
+    /// Public TLS-passthrough endpoint, e.g. "https://hud.qlinter.org"
+    pub relay_url: String,
+    /// Optional SSH host alias / destination for an automated reverse tunnel, e.g. "qonzer"
+    pub ssh_target: String,
+    /// Loopback port bound on the relay server (default 4499)
+    #[serde(default = "default_remote_port")]
+    pub remote_port: u16,
+}
+impl Default for RemoteSettings {
+    fn default() -> Self {
+        Self {
+            mode: default_remote_mode(),
+            relay_url: String::new(),
+            ssh_target: String::new(),
+            remote_port: default_remote_port(),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -11,6 +43,7 @@ pub(crate) struct Settings {
     /// 0 until the first start picks one; kept so paired phones find it again.
     pub port: u16,
     pub device_id: String,
+    pub remote: RemoteSettings,
 }
 impl Settings {
     fn file(directory: &Path) -> PathBuf {

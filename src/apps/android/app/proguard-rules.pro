@@ -1,0 +1,7 @@
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.AnnotationsKt
+-keepclassmembers class kotlinx.serialization.json.** { *** Companion; }
+-keepclasseswithmembers class kotlinx.serialization.json.** { kotlinx.serialization.KSerializer serializer(...); }
+-keep,includedescriptorclasses class org.agenthud.android.data.**$$serializer { *; }
+-keepclassmembers class org.agenthud.android.data.** { *** Companion; }
+-keepclasseswithmembers class org.agenthud.android.data.** { kotlinx.serialization.KSerializer serializer(...); }

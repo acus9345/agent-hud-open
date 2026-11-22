@@ -9,3 +9,8 @@ pub fn computer_name() -> String {
 pub(crate) fn secrets() -> Option<Arc<dyn SecretStore>> {
     Some(Arc::new(WindowsSecrets))
 }
+pub(crate) fn configure_background_command(command: &mut std::process::Command) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}

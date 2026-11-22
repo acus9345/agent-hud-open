@@ -11,5 +11,10 @@ pub mod projection;
 pub mod record;
 mod share;
 
+pub use agent_hud_lan::{
+    credentials::Authorization,
+    http::Request as LanRequest,
+    server::{Extension as LanExtension, Handled as LanHandled},
+};
 pub use record::SyncRecord;
 pub use share::{computer_name, PhoneShare, Query};
