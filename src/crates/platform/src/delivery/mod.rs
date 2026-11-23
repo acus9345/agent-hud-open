@@ -36,7 +36,8 @@ mod host;
 mod unix;
 
 pub use antigravity::{
-    desktop_installed as antigravity_desktop_installed, AntigravityTransport,
+    desktop_installed as antigravity_desktop_installed,
+    send_queued_now as antigravity_send_queued_now, AntigravityTransport,
     NativeAntigravityTransport,
 };
 pub use claude::ClaudeChannel;

@@ -15,6 +15,11 @@ use std::{
     sync::{Arc, Condvar, Mutex, PoisonError, RwLock, Weak},
 };
 
+#[path = "companion_files.rs"]
+mod files;
+#[path = "companion_open.rs"]
+mod open;
+pub(crate) use open::open_session_on_desktop;
 #[path = "companion_prefs.rs"]
 mod prefs;
 #[path = "companion_upload.rs"]
@@ -53,8 +58,15 @@ fn dispatch(
         ("GET", "/v1/companion/state") => handle_state(backend, latest_snapshot, app_dir),
         ("POST", "/v1/companion/session-detail") => handle_session_detail(&request.body, backend),
         ("POST", "/v1/companion/approval") => handle_approval(&request.body, backend, wake),
-        ("POST", "/v1/companion/send") => handle_send(&request.body, backend, wake),
+        ("POST", "/v1/companion/send") => {
+            handle_send(&request.body, backend, latest_snapshot, wake, app_dir)
+        }
+        ("POST", "/v1/companion/send-now") => open::handle_send_now(&request.body, backend, wake),
+        ("POST", "/v1/companion/open") => {
+            open::handle_open(&request.body, backend, latest_snapshot)
+        }
         ("POST", "/v1/companion/upload") => upload::handle_upload(&request.body),
+        ("POST", "/v1/companion/file") => files::handle_file(&request.body),
         _ => json_reply(404, json!({"error": "Unknown companion route"})),
     }
 }
@@ -146,12 +158,12 @@ fn parse_session_detail_body(body: &[u8]) -> Result<(String, usize, usize), Stri
         .to_owned();
     let message_limit = payload["messageLimit"]
         .as_u64()
-        .map(|n| n.clamp(1, 100) as usize)
-        .unwrap_or(40);
+        .map(|n| n.clamp(1, 800) as usize)
+        .unwrap_or(400);
     let call_limit = payload["callLimit"]
         .as_u64()
-        .map(|n| n.clamp(1, 50) as usize)
-        .unwrap_or(20);
+        .map(|n| n.clamp(1, 200) as usize)
+        .unwrap_or(80);
     Ok((id, message_limit, call_limit))
 }
 
@@ -165,7 +177,7 @@ fn handle_session_detail(body: &[u8], backend: &Weak<Mutex<Backend>>) -> LanHand
     };
     let result = {
         let mut guard = backend.lock().unwrap_or_else(PoisonError::into_inner);
-        guard.runtime.local_query(
+        let mut res = guard.runtime.local_query(
             "session_detail",
             json!({
                 "id": id,
@@ -173,11 +185,50 @@ fn handle_session_detail(body: &[u8], backend: &Weak<Mutex<Backend>>) -> LanHand
                 "messageLimit": message_limit,
                 "callLimit": call_limit,
             }),
-        )
+        );
+        if let Ok(ref mut detail) = res {
+            backfill_tail(&mut guard, &id, message_limit, detail);
+        }
+        res
     };
     match result {
         Ok(detail) => json_reply(200, detail),
         Err(error) => json_reply(400, json!({"error": error})),
+    }
+}
+
+/// A tail page cut short (fewer than `SHORT_TAIL` messages while earlier
+/// ones exist) is refilled by paging forward from the start, at most
+/// `MAX_PAGES` pages, keeping the last `message_limit` messages.
+fn backfill_tail(guard: &mut Backend, id: &str, message_limit: usize, detail: &mut Value) {
+    const SHORT_TAIL: usize = 120;
+    const MAX_PAGES: usize = 8;
+    let count = detail["messages"].as_array().map_or(0, Vec::len);
+    if detail["messagesTruncatedBefore"] != true || count >= SHORT_TAIL {
+        return;
+    }
+    let mut all = Vec::new();
+    let mut cursor = 0u64;
+    for _ in 0..MAX_PAGES {
+        let Ok(page) = guard.runtime.local_query(
+            "session_detail",
+            json!({"id": id, "messageCursor": cursor, "messageLimit": message_limit, "callLimit": 1}),
+        ) else {
+            break;
+        };
+        if let Some(rows) = page["messages"].as_array() {
+            all.extend(rows.iter().cloned());
+            if all.len() > message_limit {
+                all.drain(..all.len() - message_limit);
+            }
+        }
+        match page["nextMessageCursor"].as_u64() {
+            Some(next) if next > cursor && page["messagesComplete"] != true => cursor = next,
+            _ => break,
+        }
+    }
+    if all.len() > count {
+        detail["messages"] = Value::Array(all);
     }
 }
 
@@ -232,9 +283,10 @@ fn handle_approval(
     }
 }
 
-fn parse_send_body(body: &[u8]) -> Result<(UserTarget, String), String> {
+fn parse_send_body(body: &[u8]) -> Result<(UserTarget, String, bool), String> {
     let payload: Value =
         serde_json::from_slice(body).map_err(|_| "Request body must be valid JSON")?;
+    let send_now = payload["sendNow"].as_bool().unwrap_or(false);
     let text = payload["text"]
         .as_str()
         .map(str::trim)
@@ -243,31 +295,29 @@ fn parse_send_body(body: &[u8]) -> Result<(UserTarget, String), String> {
         .to_owned();
     let target: UserTarget =
         serde_json::from_value(payload).map_err(|_| "Invalid send target payload")?;
-    Ok((target, text))
+    Ok((target, text, send_now))
 }
 
 fn handle_send(
     body: &[u8],
     backend: &Weak<Mutex<Backend>>,
+    latest_snapshot: &Arc<RwLock<Option<Arc<Value>>>>,
     wake: &Arc<(Mutex<u8>, Condvar)>,
+    app_dir: Option<&std::path::Path>,
 ) -> LanHandled {
-    let (target, text) = match parse_send_body(body) {
+    let (target, text, send_now) = match parse_send_body(body) {
         Ok(parsed) => parsed,
         Err(error) => return json_reply(400, json!({"error": error})),
     };
-    let Some(messages) = messages_handle(backend) else {
-        return json_reply(503, json!({"error": "Messaging is unavailable"}));
-    };
-    let now = chrono::Utc::now().timestamp_millis();
-    let result = messages.as_user(|m, host| m.user_send(&target, &text, host, now));
-    match result {
-        Ok(Ok(delivery)) => {
-            wake_collector(wake, REQUEST);
-            json_reply(200, delivery)
-        }
-        Ok(Err(error)) => json_reply(400, json!({"error": error.to_string()})),
-        Err(error) => json_reply(400, json!({"error": error})),
-    }
+    open::handle_send_with_wake(
+        &target,
+        &text,
+        send_now,
+        backend,
+        latest_snapshot,
+        wake,
+        app_dir,
+    )
 }
 
 #[cfg(test)]

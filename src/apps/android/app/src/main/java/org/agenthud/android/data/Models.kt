@@ -394,6 +394,19 @@ data class IslandEventItem(
     val message: String? = null,
 )
 
+/** A tool call an assistant row asks for (`toolCall` on a transcript row). */
+@Serializable
+data class SessionToolCall(
+    val id: String? = null,
+    val name: String? = null,
+    val arguments: JsonElement? = null,
+)
+
+/**
+ * One transcript row as the desktop pages it (`conversation/page.rs`): tool calls arrive as
+ * assistant rows with no text and a [toolCall]; their results as `tool` rows sharing [toolCallId].
+ * [kind] is read when a desktop sends it (e.g. `thinking`).
+ */
 @Serializable
 data class SessionMessageItem(
     val id: String = "",
@@ -401,6 +414,11 @@ data class SessionMessageItem(
     val text: String? = null,
     val timestamp: String? = null,
     val isPrompt: Boolean = false,
+    val parentId: String? = null,
+    val turnId: String? = null,
+    val toolCallId: String? = null,
+    val toolCall: SessionToolCall? = null,
+    val kind: String? = null,
 )
 
 @Serializable
@@ -431,6 +449,17 @@ data class UploadChunkResponse(
     val path: String? = null,
     val filename: String? = null,
     val size: Long = 0L,
+)
+
+@Serializable
+data class FileChunkResponse(
+    val ok: Boolean = false,
+    val filename: String = "",
+    val mimeType: String = "application/octet-stream",
+    val size: Long = 0L,
+    val offset: Long = 0L,
+    val dataBase64: String = "",
+    val hasMore: Boolean = false,
 )
 
 // ---- Aggregated UI / Widget Snapshots ----

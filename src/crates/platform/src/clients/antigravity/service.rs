@@ -86,6 +86,7 @@ fn allowed(method: &str) -> Result<(), String> {
             | "HandleCascadeUserInteraction"
             | "StartCascade"
             | "SendUserCascadeMessage"
+            | "SendAllQueuedMessages"
             | "SendAgentMessage"
             | "CancelCascadeInvocation"
     ) {

@@ -1,8 +1,6 @@
 package org.agenthud.android.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,19 +20,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -48,7 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -57,6 +48,7 @@ import org.agenthud.android.data.ConnectionState
 import org.agenthud.android.data.PairedDevice
 import org.agenthud.android.data.QuotaFormatting
 import org.agenthud.android.ui.theme.HudColors
+import org.agenthud.android.ui.theme.HudMono
 
 @Composable
 fun DevicesScreen(
@@ -77,134 +69,104 @@ fun DevicesScreen(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.statusBars),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 104.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 10.dp, bottom = LocalDockInset.current),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "settings-header") {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Settings", style = MaterialTheme.typography.headlineMedium)
-                Button(
-                    onClick = onAddDevice,
-                    colors = ButtonDefaults.buttonColors(containerColor = HudColors.BlueAccent, contentColor = Color.White),
-                    shape = RoundedCornerShape(999.dp),
-                    contentPadding = PaddingValues(horizontal = 13.dp, vertical = 6.dp),
+                Text("Settings", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.weight(1f))
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(HudColors.SurfaceElevated)
+                        .bounceClick(scaleDown = 0.94f, onClick = onAddDevice)
+                        .padding(start = 10.dp, end = 14.dp, top = 7.dp, bottom = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Outlined.Add, contentDescription = null, tint = HudColors.BlueAccent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Pair")
+                    Text("Pair", fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = HudColors.BlueAccent)
                 }
             }
         }
 
-        // Paired computers grouped card
+        item(key = "paired-header") { SectionHeader(title = "Computers") }
         item(key = "paired-group") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Paired computers", style = MaterialTheme.typography.labelMedium, color = HudColors.TextMuted)
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = HudColors.Surface,
-                    border = BorderStroke(1.dp, HudColors.Border),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column {
-                        state.devices.forEachIndexed { idx, device ->
-                            if (idx > 0) {
-                                HorizontalDivider(
-                                    color = HudColors.Border,
-                                    thickness = 1.dp,
-                                    modifier = Modifier.padding(horizontal = 14.dp),
-                                )
-                            }
-                            val isActive = device.deviceId == state.activeDevice?.deviceId
-                            PairedDeviceRow(
-                                device = device,
-                                isActive = isActive,
-                                connectionState = if (isActive) state.connectionState else null,
-                                onSelect = { onSelectDevice(device.deviceId) },
-                                onEditRemote = {
-                                    editingRemoteFor = device
-                                    remoteModeDraft = device.remoteMode
-                                    remoteDraft = device.remoteEndpoint.orEmpty()
-                                    fallbackIpDraft = device.remoteFallbackIp.orEmpty()
-                                },
-                                onRequestRemove = { pendingRemoval = device },
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Remote access (away from Wi-Fi) card
-        item(key = "remote-help") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Connect away from Wi-Fi", style = MaterialTheme.typography.labelMedium, color = HudColors.TextMuted)
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = HudColors.Surface,
-                    border = BorderStroke(1.dp, HudColors.Border),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Text("Tailscale or Remote Tunnel", style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            text = "Tap the globe icon on any paired computer to add a remote https:// URL (Tailscale 100.x IP, Cloudflare Tunnel, or VPS relay). The app tries local Wi-Fi first and fails over automatically on 5G.",
-                            style = MaterialTheme.typography.bodySmall,
+            HudCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+                Column {
+                    state.devices.forEachIndexed { idx, device ->
+                        if (idx > 0) HudDivider(Modifier.padding(start = 34.dp))
+                        val isActive = device.deviceId == state.activeDevice?.deviceId
+                        PairedDeviceRow(
+                            device = device,
+                            isActive = isActive,
+                            connectionState = if (isActive) state.connectionState else null,
+                            onSelect = { onSelectDevice(device.deviceId) },
+                            onEditRemote = {
+                                editingRemoteFor = device
+                                remoteModeDraft = device.remoteMode
+                                remoteDraft = device.remoteEndpoint.orEmpty()
+                                fallbackIpDraft = device.remoteFallbackIp.orEmpty()
+                            },
+                            onRequestRemove = { pendingRemoval = device },
                         )
                     }
                 }
             }
         }
+        item(key = "paired-footnote") {
+            Footnote(
+                "Tap the globe on a computer to reach it away from Wi-Fi through Tailscale or a relay. " +
+                    "The app tries local Wi-Fi first and fails over on its own.",
+            )
+        }
 
-        // Live monitor + Widget settings
-        item(key = "preferences-group") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Notifications & widget", style = MaterialTheme.typography.labelMedium, color = HudColors.TextMuted)
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = HudColors.Surface,
-                    border = BorderStroke(1.dp, HudColors.Border),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text("Live monitor & approval alerts", style = MaterialTheme.typography.titleSmall)
-                                Text(
-                                    text = "Ongoing status bar monitor with instant Allow / Deny actions.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                            Spacer(Modifier.width(12.dp))
-                            Switch(
-                                checked = state.liveMonitorEnabled,
-                                onCheckedChange = onToggleLiveMonitor,
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color.White,
-                                    checkedTrackColor = HudColors.SageBright,
-                                    uncheckedThumbColor = HudColors.TextMuted,
-                                    uncheckedTrackColor = HudColors.Track,
-                                ),
-                            )
-                        }
-                        HorizontalDivider(color = HudColors.Border, thickness = 1.dp)
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Home Screen Widget", style = MaterialTheme.typography.titleSmall)
+        item(key = "prefs-header") { SectionHeader(title = "Notifications & widget") }
+        item(key = "prefs-group") {
+            HudCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+                Column {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Live monitor & approval alerts", fontSize = 14.5.sp, color = HudColors.TextPrimary)
                             Text(
-                                text = "Long-press your home screen → Widgets → Agent HUD to pin live quotas.",
+                                text = "Ongoing notification with Allow and Deny actions.",
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         }
+                        Spacer(Modifier.width(12.dp))
+                        Switch(
+                            checked = state.liveMonitorEnabled,
+                            onCheckedChange = onToggleLiveMonitor,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = HudColors.SageBright,
+                                checkedBorderColor = Color.Transparent,
+                                uncheckedThumbColor = HudColors.TextSecondary,
+                                uncheckedTrackColor = HudColors.SurfaceMuted,
+                                uncheckedBorderColor = Color.Transparent,
+                            ),
+                        )
+                    }
+                    HudDivider(Modifier.padding(start = 16.dp))
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text("Home screen widget", fontSize = 14.5.sp, color = HudColors.TextPrimary)
+                        Text(
+                            text = "Long-press your home screen, open Widgets, and add Agent HUD.",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                     }
                 }
             }
@@ -213,96 +175,70 @@ fun DevicesScreen(
 
     val remoteDevice = editingRemoteFor
     if (remoteDevice != null) {
+        val modeOptions = remember {
+            listOf("lan" to "LAN", "tailscale" to "Tailscale", "relay" to "Relay")
+        }
         AlertDialog(
             onDismissRequest = { editingRemoteFor = null },
             containerColor = HudColors.SurfaceElevated,
-            title = { Text("Remote access · ${remoteDevice.deviceName}", color = HudColors.TextPrimary) },
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    text = "Remote access · ${remoteDevice.deviceName}",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = HudColors.TextPrimary,
+                )
+            },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SlidingSegmentedSelector(
+                        options = modeOptions,
+                        selected = modeOptions.firstOrNull { it.first == remoteModeDraft } ?: modeOptions[1],
+                        onSelect = { remoteModeDraft = it.first },
+                        labelFor = { it.second },
+                        equalWidth = true,
+                        itemVerticalPadding = 7.dp,
+                        fontSize = 13.sp,
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        listOf("lan" to "LAN", "tailscale" to "Tailscale", "relay" to "Relay").forEach { (id, label) ->
-                            val selected = remoteModeDraft == id
-                            Surface(
-                                shape = RoundedCornerShape(999.dp),
-                                color = if (selected) HudColors.BlueSoft else HudColors.Surface,
-                                border = BorderStroke(1.dp, if (selected) HudColors.BlueAccent else HudColors.BorderStrong),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { remoteModeDraft = id },
-                            ) {
-                                Box(
-                                    modifier = Modifier.padding(vertical = 7.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text = label,
-                                        fontSize = 11.5.sp,
-                                        color = if (selected) HudColors.TextPrimary else HudColors.TextSecondary,
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    )
 
-                    if (remoteModeDraft == "tailscale") {
-                        Text(
-                            text = "Uses your computer's Tailscale 100.x address automatically, or enter a custom Tailscale URL below.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        OutlinedTextField(
-                            value = remoteDraft,
-                            onValueChange = { remoteDraft = it },
-                            placeholder = { Text("https://100.64.0.10:49210 (optional)", color = HudColors.TextMuted) },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = HudColors.BlueAccent,
-                                unfocusedBorderColor = HudColors.BorderStrong,
-                                focusedTextColor = HudColors.TextPrimary,
-                                unfocusedTextColor = HudColors.TextPrimary,
-                            ),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    } else if (remoteModeDraft == "relay") {
-                        Text(
-                            text = "End-to-end TLS passthrough: the relay forwards encrypted bytes by SNI and never sees plaintext.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        OutlinedTextField(
-                            value = remoteDraft,
-                            onValueChange = { remoteDraft = it },
-                            label = { Text("Relay URL", color = HudColors.TextMuted) },
-                            placeholder = { Text("https://hud.qlinter.org", color = HudColors.TextMuted) },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = HudColors.BlueAccent,
-                                unfocusedBorderColor = HudColors.BorderStrong,
-                                focusedTextColor = HudColors.TextPrimary,
-                                unfocusedTextColor = HudColors.TextPrimary,
-                            ),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        OutlinedTextField(
-                            value = fallbackIpDraft,
-                            onValueChange = { fallbackIpDraft = it },
-                            label = { Text("Server IP fallback (optional)", color = HudColors.TextMuted) },
-                            placeholder = { Text("40.27.47.162", color = HudColors.TextMuted) },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = HudColors.BlueAccent,
-                                unfocusedBorderColor = HudColors.BorderStrong,
-                                focusedTextColor = HudColors.TextPrimary,
-                                unfocusedTextColor = HudColors.TextPrimary,
-                            ),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    } else {
-                        Text(
-                            text = "Connect only when on the same local Wi-Fi network.",
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+                    when (remoteModeDraft) {
+                        "tailscale" -> {
+                            Text(
+                                text = "Uses your computer's Tailscale 100.x address automatically, or enter a custom Tailscale URL below.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            HudTextField(
+                                value = remoteDraft,
+                                onValueChange = { remoteDraft = it },
+                                placeholder = "https://100.64.0.10:49210 (optional)",
+                            )
+                        }
+                        "relay" -> {
+                            Text(
+                                text = "End-to-end TLS passthrough: the relay forwards encrypted bytes by SNI and never sees plaintext.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            HudTextField(
+                                value = remoteDraft,
+                                onValueChange = { remoteDraft = it },
+                                label = "Relay URL",
+                                placeholder = "https://hud.example.com",
+                            )
+                            HudTextField(
+                                value = fallbackIpDraft,
+                                onValueChange = { fallbackIpDraft = it },
+                                label = "Server IP fallback (optional)",
+                                placeholder = "203.0.113.10",
+                            )
+                        }
+                        else -> {
+                            Text(
+                                text = "Connect only when on the same local Wi-Fi network.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
             },
@@ -313,7 +249,7 @@ fun DevicesScreen(
                         editingRemoteFor = null
                     },
                 ) {
-                    Text("Save", color = HudColors.BlueAccent)
+                    Text("Save", color = HudColors.BlueAccent, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
@@ -329,7 +265,15 @@ fun DevicesScreen(
         AlertDialog(
             onDismissRequest = { pendingRemoval = null },
             containerColor = HudColors.SurfaceElevated,
-            title = { Text("Remove ${toDelete.deviceName}?", color = HudColors.TextPrimary) },
+            shape = RoundedCornerShape(24.dp),
+            title = {
+                Text(
+                    text = "Remove ${toDelete.deviceName}?",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = HudColors.TextPrimary,
+                )
+            },
             text = {
                 Text(
                     "Deletes the stored pairing token and TLS pin from this phone.",
@@ -343,7 +287,7 @@ fun DevicesScreen(
                         onRemoveDevice(toDelete.deviceId)
                     },
                 ) {
-                    Text("Remove", color = HudColors.Terracotta)
+                    Text("Remove", color = HudColors.Terracotta, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
@@ -356,6 +300,36 @@ fun DevicesScreen(
 }
 
 @Composable
+private fun Footnote(text: String) {
+    Text(
+        text = text,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        color = HudColors.TextMuted,
+        modifier = Modifier.padding(horizontal = 4.dp),
+    )
+}
+
+@Composable
+private fun HudTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    label: String? = null,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = label?.let { { Text(it, color = HudColors.TextMuted) } },
+        placeholder = { Text(placeholder, color = HudColors.TextMuted) },
+        singleLine = true,
+        shape = RoundedCornerShape(14.dp),
+        colors = hudTextFieldColors(),
+        modifier = Modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
 private fun PairedDeviceRow(
     device: PairedDevice,
     isActive: Boolean,
@@ -364,93 +338,113 @@ private fun PairedDeviceRow(
     onEditRemote: () -> Unit,
     onRequestRemove: () -> Unit,
 ) {
+    val statusColor = when (connectionState) {
+        ConnectionState.LIVE_SSE, ConnectionState.POLLING -> HudColors.SageBright
+        ConnectionState.CONNECTING, null -> HudColors.TextMuted
+        else -> HudColors.Terracotta
+    }
+    val statusText = when (connectionState) {
+        ConnectionState.LIVE_SSE -> "Live"
+        ConnectionState.POLLING -> "Connected"
+        ConnectionState.CONNECTING -> "Connecting…"
+        ConnectionState.UNAUTHORIZED -> "Pairing revoked"
+        ConnectionState.ERROR -> "Unreachable"
+        ConnectionState.DISCONNECTED -> "Disconnected"
+        null -> "Paired ${QuotaFormatting.formatRelativeMs(device.pairedAtMs)}"
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onSelect)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .bounceClick(scaleDown = 0.985f, onClick = onSelect)
+            .padding(start = 16.dp, end = 6.dp, top = 13.dp, bottom = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Box(modifier = Modifier.width(18.dp), contentAlignment = Alignment.CenterStart) {
+            if (isActive) {
+                BreathingDot(
+                    color = statusColor,
+                    size = 8.dp,
+                    pulsing = connectionState == ConnectionState.LIVE_SSE,
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(HudColors.SurfaceMuted),
+                )
+            }
+        }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (isActive) {
-                    Icon(
-                        imageVector = Icons.Outlined.CheckCircle,
-                        contentDescription = "Active",
-                        tint = HudColors.SageBright,
-                        modifier = Modifier.size(15.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                }
                 Text(
                     text = device.deviceName,
-                    style = MaterialTheme.typography.titleMedium,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = HudColors.TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
                 )
+                Spacer(Modifier.width(8.dp))
+                Text(text = statusText, fontSize = 12.sp, color = if (isActive) statusColor else HudColors.TextMuted)
             }
             Text(
                 text = device.lastActiveEndpoint ?: device.endpoint,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp,
+                fontFamily = HudMono,
+                fontSize = 11.5.sp,
                 color = HudColors.TextSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             if (!device.remoteEndpoint.isNullOrBlank()) {
                 Text(
-                    text = "Remote: ${device.remoteEndpoint}",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.5.sp,
+                    text = "Remote ${device.remoteEndpoint}",
+                    fontFamily = HudMono,
+                    fontSize = 11.sp,
                     color = HudColors.BlueAccent,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "TLS ${device.certificateSha256.take(12)}…",
-                    style = MaterialTheme.typography.labelSmall,
-                )
-                if (connectionState != null) {
-                    val color = when (connectionState) {
-                        ConnectionState.LIVE_SSE, ConnectionState.POLLING -> HudColors.SageBright
-                        ConnectionState.CONNECTING -> HudColors.TextMuted
-                        else -> HudColors.Terracotta
-                    }
-                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(color))
-                    Text(
-                        text = connectionState.name.lowercase().replace('_', ' '),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = color,
-                    )
-                } else {
-                    Text(
-                        text = "Paired ${QuotaFormatting.formatRelativeMs(device.pairedAtMs)}",
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                }
-            }
+            Text(
+                text = "TLS ${device.certificateSha256.take(12)}…",
+                fontFamily = HudMono,
+                fontSize = 10.5.sp,
+                color = HudColors.TextMuted,
+            )
         }
 
-        IconButton(onClick = onEditRemote) {
-            Icon(
-                imageVector = Icons.Outlined.Public,
-                contentDescription = "Remote endpoint",
-                tint = if (!device.remoteEndpoint.isNullOrBlank()) HudColors.BlueAccent else HudColors.TextMuted,
-                modifier = Modifier.size(19.dp),
-            )
-        }
-        IconButton(onClick = onRequestRemove) {
-            Icon(
-                imageVector = Icons.Outlined.DeleteOutline,
-                contentDescription = "Remove computer",
-                tint = HudColors.TextMuted,
-                modifier = Modifier.size(19.dp),
-            )
-        }
+        RowIconButton(
+            icon = Icons.Outlined.Public,
+            description = "Remote endpoint",
+            tint = if (!device.remoteEndpoint.isNullOrBlank()) HudColors.BlueAccent else HudColors.TextSecondary,
+            onClick = onEditRemote,
+        )
+        RowIconButton(
+            icon = Icons.Outlined.DeleteOutline,
+            description = "Remove computer",
+            tint = HudColors.TextMuted,
+            onClick = onRequestRemove,
+        )
+    }
+}
+
+@Composable
+private fun RowIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String,
+    tint: Color,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .bounceClick(scaleDown = 0.88f, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(imageVector = icon, contentDescription = description, tint = tint, modifier = Modifier.size(19.dp))
     }
 }

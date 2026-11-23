@@ -8,45 +8,58 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 
 /**
- * Pure-black iOS-inspired Obsidian / Sage / Terracotta design tokens.
+ * OLED design tokens.
+ *
+ * One true-black canvas, three flat neutral surface steps, hairline separators, and a small set of
+ * functional accents. No gradients: depth comes from the surface steps alone.
  */
 object HudColors {
     val Background = Color(0xFF000000)
-    val Surface = Color(0xFF111115)
-    val SurfaceElevated = Color(0xFF17171D)
-    val SurfaceMuted = Color(0xFF202028)
-    val DockGlass = Color(0xEB15151B)
-    val Border = Color(0x14FFFFFF)
-    val BorderStrong = Color(0x26FFFFFF)
+    val Surface = Color(0xFF111113)
+    val SurfaceElevated = Color(0xFF1A1A1D)
+    val SurfaceMuted = Color(0xFF26262A)
+    val DockGlass = Color(0xF2161618)
+    val Border = Color(0x12FFFFFF)
+    val BorderStrong = Color(0x21FFFFFF)
 
-    val TextPrimary = Color(0xFFF5F5F7)
-    val TextSecondary = Color(0xFF9898A2)
-    val TextMuted = Color(0xFF63636C)
+    val TextPrimary = Color(0xFFF2F2F4)
+    val TextSecondary = Color(0xFF8E8E95)
+    val TextMuted = Color(0xFF5C5C63)
 
-    // Signature fork quota accents (no harsh yellow)
-    val Sage = Color(0xFF5B7A45)
-    val SageBright = Color(0xFF729958)
-    val SageSoft = Color(0x265B7A45)
-    val Terracotta = Color(0xFFC84B3C)
-    val TerracottaSoft = Color(0x26C84B3C)
-    val BlueAccent = Color(0xFF4C8BF5)
-    val BlueSoft = Color(0x244C8BF5)
-    val Track = Color(0xFF22222A)
+    // Quota accents: sage for healthy, terracotta for critical.
+    val Sage = Color(0xFF5E8A4A)
+    val SageBright = Color(0xFF7FB069)
+    val SageSoft = Color(0x225E8A4A)
+    val Terracotta = Color(0xFFE0604F)
+    val TerracottaSoft = Color(0x2EE0604F)
+    val BlueAccent = Color(0xFF3B8BFF)
+    val BlueSoft = Color(0x2A3B8BFF)
+    val Track = Color(0xFF1E1E22)
 
-    // Token kind dot accents (matches iOS Stats & Sessions)
+    // Chat: recessed code wells, the user's bubble, diff tints.
+    val CodeSurface = Color(0xFF0C0C0E)
+    val UserBubble = Color(0xFF26262A)
+    val ChatText = Color(0xFFECECEE)
+    val DiffAddBg = Color(0x1F57B26A)
+    val DiffAddFg = Color(0xFF8FD3A0)
+    val DiffDelBg = Color(0x24E0604F)
+    val DiffDelFg = Color(0xFFF2A194)
+
+    // Token kind accents (shared by Stats and Sessions).
     val KindInput = Color(0xFF5B8DEF)
     val KindOutput = Color(0xFFE08A4E)
     val KindReasoning = Color(0xFFD67AA8)
     val KindCacheWrite = Color(0xFF9E77ED)
     val KindCacheRead = Color(0xFF4BB89A)
 
-    // Multi-model stacked bar palette (matches iOS Stats)
+    // Per-model stacked bar palette.
     val ModelPalette = listOf(
-        Color(0xFF7C9E5E),
-        Color(0xFF63A4FF),
+        Color(0xFF7FB069),
+        Color(0xFF5B9BFF),
         Color(0xFFA47EF7),
         Color(0xFFE07C56),
         Color(0xFF54B8A8),
@@ -68,14 +81,46 @@ object HudColors {
     }
 }
 
+/**
+ * Numeric text styles. All figures use tabular digits so values never jitter while they animate.
+ */
+object HudType {
+    private const val TABULAR = "tnum"
+
+    fun numeric(
+        size: TextUnit,
+        weight: FontWeight = FontWeight.SemiBold,
+        color: Color = HudColors.TextPrimary,
+        letterSpacing: TextUnit = 0.sp,
+    ): TextStyle = TextStyle(
+        fontSize = size,
+        fontWeight = weight,
+        color = color,
+        letterSpacing = letterSpacing,
+        fontFeatureSettings = TABULAR,
+    )
+
+    /** Plain tabular-digit style for inline figures that otherwise inherit their look. */
+    val Tabular = TextStyle(fontFeatureSettings = TABULAR)
+
+    /** Hero figures (token totals, big percentages). */
+    val Display = numeric(30.sp, FontWeight.Bold, letterSpacing = (-0.8).sp)
+
+    /** Row-trailing figures (percentages, token counts). */
+    val Value = numeric(14.sp, FontWeight.SemiBold)
+
+    /** Small secondary figures (costs, reset times). */
+    val Caption = numeric(11.5.sp, FontWeight.Normal, HudColors.TextSecondary)
+}
+
 private val HudDarkScheme = darkColorScheme(
-    primary = HudColors.Sage,
+    primary = HudColors.BlueAccent,
     onPrimary = Color.White,
-    primaryContainer = HudColors.SageSoft,
+    primaryContainer = HudColors.BlueSoft,
     onPrimaryContainer = HudColors.TextPrimary,
-    secondary = HudColors.Terracotta,
-    onSecondary = Color.White,
-    secondaryContainer = HudColors.TerracottaSoft,
+    secondary = HudColors.SageBright,
+    onSecondary = Color.Black,
+    secondaryContainer = HudColors.SageSoft,
     onSecondaryContainer = HudColors.TextPrimary,
     background = HudColors.Background,
     onBackground = HudColors.TextPrimary,
@@ -83,16 +128,29 @@ private val HudDarkScheme = darkColorScheme(
     onSurface = HudColors.TextPrimary,
     surfaceVariant = HudColors.SurfaceElevated,
     onSurfaceVariant = HudColors.TextSecondary,
-    outline = HudColors.Border,
+    surfaceContainer = HudColors.SurfaceElevated,
+    surfaceContainerHigh = HudColors.SurfaceElevated,
+    surfaceContainerHighest = HudColors.SurfaceMuted,
+    surfaceContainerLow = HudColors.Surface,
+    outline = HudColors.BorderStrong,
+    outlineVariant = HudColors.Border,
     error = HudColors.Terracotta,
     onError = Color.White,
 )
 
 private val HudTypography = Typography(
-    headlineMedium = TextStyle(
-        fontSize = 26.sp,
+    headlineLarge = TextStyle(
+        fontSize = 30.sp,
         fontWeight = FontWeight.Bold,
-        letterSpacing = (-0.6).sp,
+        letterSpacing = (-0.8).sp,
+        lineHeight = 36.sp,
+        color = HudColors.TextPrimary,
+    ),
+    headlineMedium = TextStyle(
+        fontSize = 28.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.7).sp,
+        lineHeight = 34.sp,
         color = HudColors.TextPrimary,
     ),
     headlineSmall = TextStyle(
@@ -105,11 +163,13 @@ private val HudTypography = Typography(
         fontSize = 15.sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = (-0.2).sp,
+        lineHeight = 20.sp,
         color = HudColors.TextPrimary,
     ),
     titleSmall = TextStyle(
-        fontSize = 13.sp,
+        fontSize = 13.5.sp,
         fontWeight = FontWeight.Medium,
+        lineHeight = 18.sp,
         color = HudColors.TextPrimary,
     ),
     bodyMedium = TextStyle(
@@ -124,18 +184,26 @@ private val HudTypography = Typography(
         lineHeight = 17.sp,
         color = HudColors.TextSecondary,
     ),
+    labelLarge = TextStyle(
+        fontSize = 14.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = HudColors.TextPrimary,
+    ),
     labelMedium = TextStyle(
-        fontSize = 11.sp,
+        fontSize = 12.sp,
         fontWeight = FontWeight.Medium,
         color = HudColors.TextSecondary,
     ),
     labelSmall = TextStyle(
-        fontSize = 10.sp,
-        fontWeight = FontWeight.Medium,
-        fontFamily = FontFamily.Monospace,
+        fontSize = 11.sp,
+        fontWeight = FontWeight.Normal,
+        fontFeatureSettings = "tnum",
         color = HudColors.TextMuted,
     ),
 )
+
+/** Monospace is kept only for code-like content (commands, hashes, endpoints). */
+val HudMono: FontFamily = FontFamily.Monospace
 
 @Composable
 fun AgentHudTheme(content: @Composable () -> Unit) {

@@ -170,25 +170,31 @@ pub(super) fn open(home: &Path, id: &str, _cwd: Option<&str>) -> Result<bool, St
     if !super::is_uuid(id) {
         return Ok(false);
     }
-    let Some(port) = super::antigravity::devtools_port(home) else {
-        return Ok(false);
+    let mut port = super::antigravity::devtools_port(home);
+    let mut found = port.and_then(|p| find_matching_windows(home, p));
+    let needs_wake = match &found {
+        Some((windows, true)) => windows.is_empty(),
+        _ => true,
     };
-    let Some((mut windows, listening)) = find_matching_windows(home, port) else {
-        return Ok(false);
-    };
-    // Closed to the tray, it still listens but shows no window: woken, it
-    // shows one within a few seconds.
-    if windows.is_empty() && listening && wake_desktop(home) {
-        for _ in 0..40 {
+    // Closed completely or minimized to the tray: launch Antigravity.exe and
+    // wait for its DevTools port and main window to come up.
+    if needs_wake && wake_desktop(home) {
+        for _ in 0..120 {
             thread::sleep(Duration::from_millis(100));
-            if let Some((shown, _)) = find_matching_windows(home, port) {
-                if !shown.is_empty() {
-                    windows = shown;
-                    break;
+            port = super::antigravity::devtools_port(home);
+            if let Some(p) = port {
+                if let Some((shown, true)) = find_matching_windows(home, p) {
+                    if !shown.is_empty() {
+                        found = Some((shown, true));
+                        break;
+                    }
                 }
             }
         }
     }
+    let (Some(port), Some((windows, true))) = (port, found) else {
+        return Ok(false);
+    };
     // With more than one window it is not known which one the conversation
     // opens in, so the log is shown instead.
     let [(window, _)] = windows.as_slice() else {

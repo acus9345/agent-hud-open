@@ -1,30 +1,25 @@
 package org.agenthud.android.ui
 
 import androidx.annotation.DrawableRes
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -32,7 +27,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import org.agenthud.android.R
 import org.agenthud.android.ui.theme.HudColors
 import java.util.Locale
@@ -42,7 +36,7 @@ fun providerIconRes(rawId: String): Int? {
     val norm = rawId.removePrefix("api:").trim().lowercase(Locale.US)
     return when {
         norm.contains("claude") -> R.drawable.ic_provider_claude
-        norm == "codex" || norm.contains("openai") || norm.contains("chatgpt") -> R.drawable.ic_provider_chatgpt
+        norm.contains("codex") || norm.contains("openai") || norm.contains("chatgpt") -> R.drawable.ic_provider_chatgpt
         norm.contains("antigravity") -> R.drawable.ic_provider_antigravity
         norm.contains("deepseek") -> R.drawable.ic_provider_deepseek
         norm.contains("grok-bot") || norm.contains("grok_bot") || norm == "grok bot" -> R.drawable.ic_provider_grok_bot
@@ -75,45 +69,74 @@ fun providerIconRes(rawId: String): Int? {
 }
 
 /**
- * Renders the real official provider icon PNG (no generic colorful dots or 2-letter stubs).
+ * Template marks whose source bitmaps are dark/black silhouettes on transparent backgrounds
+ * and must be tinted pure white when rendered on dark surfaces (Codex/OpenAI, Grok, Cursor, etc.).
+ */
+fun isMonochromeTemplateIcon(@DrawableRes resId: Int): Boolean = when (resId) {
+    R.drawable.ic_provider_chatgpt,
+    R.drawable.ic_provider_grok,
+    R.drawable.ic_provider_cursor,
+    R.drawable.ic_provider_copilot,
+    R.drawable.ic_provider_cline,
+    R.drawable.ic_provider_zcode,
+    R.drawable.ic_provider_kimi,
+    R.drawable.ic_provider_pi,
+    R.drawable.ic_provider_trae,
+    R.drawable.ic_provider_roo_code,
+    R.drawable.ic_provider_kilocode,
+    R.drawable.ic_provider_hermes,
+    R.drawable.ic_provider_goose,
+    R.drawable.ic_provider_xiaomimimo,
+    -> true
+    else -> false
+}
+
+/**
+ * Renders the provider's own mark, unboxed. Monochrome template marks (Codex/ChatGPT, Grok, Cursor…)
+ * are tinted pure white so they read crisply on the black canvas.
  */
 @Composable
 fun ProviderIcon(
     providerId: String,
     size: Dp = 20.dp,
     modifier: Modifier = Modifier,
+    tintOverride: Color? = null,
 ) {
     val res = providerIconRes(providerId)
     if (res != null) {
+        val colorFilter = when {
+            tintOverride != null -> ColorFilter.tint(tintOverride)
+            isMonochromeTemplateIcon(res) -> ColorFilter.tint(Color.White)
+            else -> null
+        }
         Image(
             painter = painterResource(id = res),
             contentDescription = providerId,
             contentScale = ContentScale.Fit,
-            modifier = modifier
-                .size(size)
-                .clip(RoundedCornerShape(size * 0.24f)),
+            colorFilter = colorFilter,
+            modifier = modifier.size(size),
         )
     } else {
-        val accent = HudColors.providerAccent(providerId)
         Box(
             modifier = modifier
                 .size(size)
                 .clip(CircleShape)
-                .background(accent.copy(alpha = 0.22f)),
+                .background(HudColors.SurfaceMuted),
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = providerId.take(1).uppercase(),
-                fontSize = (size.value * 0.5f).sp,
-                fontWeight = FontWeight.Bold,
-                color = accent,
+                text = providerId.trim().take(1).uppercase(),
+                fontSize = (size.value * 0.48f).sp,
+                fontWeight = FontWeight.SemiBold,
+                color = HudColors.TextSecondary,
             )
         }
     }
 }
 
 /**
- * Subtle breathing live indicator dot for active sessions and live SSE connections.
+ * Live indicator: the dot itself breathes softly in opacity. No halo, no size change, so it never
+ * nudges surrounding text.
  */
 @Composable
 fun BreathingDot(
@@ -122,72 +145,26 @@ fun BreathingDot(
     pulsing: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    if (!pulsing) {
-        Box(
-            modifier = modifier
-                .size(size)
-                .clip(CircleShape)
-                .background(color),
-        )
-        return
-    }
-    val transition = rememberInfiniteTransition(label = "pulse")
-    val pulse by transition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "pulseAlpha",
-    )
-    Box(
-        modifier = modifier.size(size * 1.8f),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(size * 1.7f)
-                .graphicsLayer { alpha = (1f - pulse) * 0.45f }
-                .clip(CircleShape)
-                .background(color),
-        )
-        Box(
-            modifier = Modifier
-                .size(size)
-                .clip(CircleShape)
-                .background(color),
-        )
-    }
-}
-
-/**
- * Smooth entrance slide + fade motion for cards and rows.
- */
-@Composable
-fun RevealMotion(
-    key: Any = Unit,
-    delayMs: Int = 0,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-    val progress = remember(key) { Animatable(0f) }
-    LaunchedEffect(key) {
-        if (delayMs > 0) delay(delayMs.toLong())
-        progress.animateTo(
-            targetValue = 1f,
-            animationSpec = spring(
-                dampingRatio = 0.85f,
-                stiffness = Spring.StiffnessMediumLow,
+    val alpha = if (pulsing) {
+        val transition = rememberInfiniteTransition(label = "breathe")
+        val a by transition.animateFloat(
+            initialValue = 1f,
+            targetValue = 0.35f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1100, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
             ),
+            label = "breatheAlpha",
         )
+        a
+    } else {
+        1f
     }
     Box(
-        modifier = modifier.graphicsLayer {
-            alpha = progress.value.coerceIn(0f, 1f)
-            translationY = (1f - progress.value) * 18f
-        },
-    ) {
-        content()
-    }
+        modifier = modifier
+            .size(size)
+            .graphicsLayer { this.alpha = alpha }
+            .clip(CircleShape)
+            .background(color),
+    )
 }

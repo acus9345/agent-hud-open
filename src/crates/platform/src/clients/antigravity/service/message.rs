@@ -113,12 +113,21 @@ impl MessageSession {
     /// after the request starts is uncertain, including a lost response or an
     /// unexpected body, and is never retried on another service.
     pub fn send(&self, params: &Value) -> Result<Value, MessageError> {
+        self.write("SendUserCascadeMessage", params)
+    }
+
+    /// Flushes all queued messages in this cascade immediately ("Send now").
+    pub fn send_all_queued(&self, params: &Value) -> Result<Value, MessageError> {
+        self.write("SendAllQueuedMessages", params)
+    }
+
+    fn write(&self, method: &str, params: &Value) -> Result<Value, MessageError> {
         if params["cascadeId"].as_str() != Some(self.cascade_id.as_str()) {
             return Err(MessageError::Invalid("Antigravity session identity".into()));
         }
         service()
             .map_err(MessageError::Unavailable)?
-            .send(&self.endpoint, "SendUserCascadeMessage", params)
+            .send(&self.endpoint, method, params)
             .map_err(|_| MessageError::Uncertain)
     }
 }

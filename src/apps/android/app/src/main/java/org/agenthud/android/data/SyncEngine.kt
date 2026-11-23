@@ -704,11 +704,11 @@ class AgentHudRepository(
         }
     }
 
-    suspend fun fetchSessionDetail(sessionId: String): Result<SessionDetailResponse> {
+    suspend fun fetchSessionDetail(sessionId: String, messageLimit: Int = 500): Result<SessionDetailResponse> {
         val device = _state.value.activeDevice
             ?: return Result.failure(IllegalStateException("No paired computer"))
         return runCatching {
-            lanClient.fetchSessionDetail(device, sessionId)
+            lanClient.fetchSessionDetail(device, sessionId, messageLimit = messageLimit)
         }
     }
 
@@ -746,15 +746,54 @@ class AgentHudRepository(
         }
     }
 
-    suspend fun sendToSession(clientName: String, sessionId: String, text: String): Result<SendDeliveryResponse> {
+    suspend fun openSessionOnDesktop(sessionId: String, clientName: String): Result<Unit> {
         val device = _state.value.activeDevice
             ?: return Result.failure(IllegalStateException("No paired computer"))
         return runCatching {
-            val response = lanClient.sendToSession(device, clientName, sessionId, text)
+            lanClient.openSessionOnDesktop(device, sessionId, clientName)
+            _state.update { it.copy(bannerMessage = "Opening session on ${device.deviceName}") }
+            scope.launch {
+                delay(1200)
+                pollCompanionOnce(device)
+            }
+        }
+    }
+
+    suspend fun sendToSession(
+        clientName: String,
+        sessionId: String,
+        text: String,
+        sendNow: Boolean = false,
+    ): Result<SendDeliveryResponse> {
+        val device = _state.value.activeDevice
+            ?: return Result.failure(IllegalStateException("No paired computer"))
+        return runCatching {
+            val response = lanClient.sendToSession(device, clientName, sessionId, text, sendNow = sendNow)
             if (response.state == "refused") {
                 throw IllegalStateException(response.reason ?: "Session refused the message")
             }
-            _state.update { it.copy(bannerMessage = "Sent to $clientName") }
+            _state.update { it.copy(bannerMessage = if (sendNow) "Sent now to $clientName" else "Sent to $clientName") }
+            scope.launch {
+                delay(500)
+                pollCompanionOnce(device)
+            }
+            response
+        }
+    }
+
+    suspend fun sendNowToSession(
+        clientName: String,
+        sessionId: String,
+        text: String = "",
+    ): Result<SendDeliveryResponse> {
+        val device = _state.value.activeDevice
+            ?: return Result.failure(IllegalStateException("No paired computer"))
+        return runCatching {
+            val response = lanClient.sendNowToSession(device, clientName, sessionId, text)
+            if (response.state == "refused") {
+                throw IllegalStateException(response.reason ?: "Session refused immediate send")
+            }
+            _state.update { it.copy(bannerMessage = "Sent now to $clientName") }
             scope.launch {
                 delay(500)
                 pollCompanionOnce(device)
@@ -789,6 +828,43 @@ class AgentHudRepository(
                 throw IllegalStateException("Upload did not complete")
             }
             response
+        }
+    }
+
+    suspend fun inspectDesktopFile(path: String): Result<FileChunkResponse> {
+        val device = _state.value.activeDevice
+            ?: return Result.failure(IllegalStateException("No paired computer"))
+        return runCatching {
+            lanClient.fetchFileChunk(device, path, offset = 0L, length = 0)
+        }
+    }
+
+    suspend fun downloadDesktopFile(
+        path: String,
+        onProgress: (downloaded: Long, total: Long) -> Unit = { _, _ -> },
+    ): Result<Triple<String, String, ByteArray>> {
+        val device = _state.value.activeDevice
+            ?: return Result.failure(IllegalStateException("No paired computer"))
+        return runCatching {
+            val out = java.io.ByteArrayOutputStream()
+            var offset = 0L
+            var filename = ""
+            var mime = "application/octet-stream"
+            var total = 0L
+            while (true) {
+                val chunk = lanClient.fetchFileChunk(device, path, offset = offset, length = 512 * 1024)
+                filename = chunk.filename.ifBlank { filename }
+                mime = chunk.mimeType
+                total = chunk.size
+                if (chunk.dataBase64.isNotEmpty()) {
+                    val decoded = java.util.Base64.getDecoder().decode(chunk.dataBase64)
+                    out.write(decoded)
+                    offset += decoded.size.toLong()
+                }
+                onProgress(offset, total)
+                if (!chunk.hasMore || chunk.dataBase64.isEmpty()) break
+            }
+            Triple(filename.ifBlank { "file" }, mime, out.toByteArray())
         }
     }
 

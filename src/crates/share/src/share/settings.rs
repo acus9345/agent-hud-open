@@ -17,9 +17,9 @@ pub(crate) struct RemoteSettings {
     /// "lan" | "tailscale" | "relay"
     #[serde(default = "default_remote_mode")]
     pub mode: String,
-    /// Public TLS-passthrough endpoint, e.g. "https://hud.qlinter.org"
+    /// Public TLS-passthrough endpoint, e.g. "https://hud.example.com"
     pub relay_url: String,
-    /// Optional SSH host alias / destination for an automated reverse tunnel, e.g. "qonzer"
+    /// Optional SSH host alias / destination for an automated reverse tunnel, e.g. "my-vps"
     pub ssh_target: String,
     /// Loopback port bound on the relay server (default 4499)
     #[serde(default = "default_remote_port")]

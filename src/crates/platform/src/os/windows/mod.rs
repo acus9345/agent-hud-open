@@ -33,8 +33,8 @@ pub(crate) fn app_ancestors(_pid: u32) -> Vec<u32> {
 }
 pub(crate) use secrets::{app_cookie, stored_secret, unseal_safe_storage};
 pub(crate) const READS_PROCESS_ENVIRONMENT: bool = false;
-/// The desktop app's resume link for a background job is unverified here.
-pub(crate) const MOVES_CLAUDE_JOBS: bool = false;
+/// Background jobs move into Claude Desktop through `claude://resume?session=`.
+pub(crate) const MOVES_CLAUDE_JOBS: bool = true;
 /// Claude Desktop's Project thread links are unverified here.
 pub(crate) const OPENS_CLAUDE_PROJECTS: bool = false;
 pub(crate) use files::{

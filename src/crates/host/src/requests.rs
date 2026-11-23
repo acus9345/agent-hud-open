@@ -41,6 +41,16 @@ pub(crate) async fn native_request(
                 match agent_hud_runtime::open_cached_session(&snapshot, id, demo) {
                     CachedOpen::Done(result) => return result,
                     CachedOpen::Reveal => {
+                        if !demo {
+                            if let Ok(action) = crate::phones::open_session_on_desktop(
+                                id,
+                                None,
+                                &Arc::downgrade(&backend),
+                                &latest_snapshot,
+                            ) {
+                                return Ok(serde_json::json!({"opened": true, "action": action}));
+                            }
+                        }
                         let mut backend = backend.lock().unwrap_or_else(PoisonError::into_inner);
                         return backend.runtime.reveal_session(id);
                     }

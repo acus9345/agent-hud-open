@@ -160,7 +160,7 @@ export function RemoteAccessSection({
                 <input
                   type="text"
                   value={relayUrl}
-                  placeholder="https://hud.qlinter.org"
+                  placeholder="https://hud.example.com"
                   onChange={(e) => setRelayUrl(e.target.value)}
                   style={inputStyle}
                 />
@@ -177,7 +177,7 @@ export function RemoteAccessSection({
                   <input
                     type="text"
                     value={sshTarget}
-                    placeholder="qonzer"
+                    placeholder="my-vps"
                     onChange={(e) => setSshTarget(e.target.value)}
                     style={inputStyle}
                   />

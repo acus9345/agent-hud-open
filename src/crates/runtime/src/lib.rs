@@ -1,7 +1,7 @@
 //! The application service shared by desktop, CLI and MCP transports.
 use agent_hud_core::{AccountProjection, AgentHudCore, SourceRoot};
-pub use agent_hud_platform::WebSignInDesk;
-use agent_hud_platform::{AccountService, FileChanges, NativePlatform};
+use agent_hud_platform::{AccountService, FileChanges};
+pub use agent_hud_platform::{NativePlatform, WebSignInDesk};
 use serde_json::{json, Value};
 use std::{
     path::PathBuf,

@@ -45,6 +45,27 @@ pub(super) fn send(
     Ok(note)
 }
 
+pub(super) fn send_all_queued(cascade_id: &str) -> Result<()> {
+    use crate::clients::antigravity::service::message_session;
+    let session = message_session(cascade_id).map_err(windows_message_error)?;
+    let (config, _) = choose(
+        latest_turn_config(cascade_id, |method, body| session.read(method, &body)),
+        super::picker::picked(),
+        || session.user_status().ok(),
+    );
+    let mut body = json!({
+        "metadata": super::metadata(),
+        "cascadeId": cascade_id,
+    });
+    if let Some(config) = config {
+        body["cascadeConfig"] = config;
+    }
+    session
+        .send_all_queued(&body)
+        .map_err(windows_message_error)?;
+    Ok(())
+}
+
 fn windows_message_error(error: crate::clients::antigravity::service::MessageError) -> Failure {
     use crate::clients::antigravity::service::MessageError;
     match error {

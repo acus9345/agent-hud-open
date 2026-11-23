@@ -174,8 +174,8 @@ class LanClient {
     suspend fun fetchSessionDetail(
         device: PairedDevice,
         sessionId: String,
-        messageLimit: Int = 50,
-        callLimit: Int = 20,
+        messageLimit: Int = 500,
+        callLimit: Int = 100,
     ): SessionDetailResponse = withContext(Dispatchers.IO) {
         val body = buildJsonObject {
             put("id", sessionId)
@@ -214,20 +214,65 @@ class LanClient {
         }
     }
 
+    suspend fun openSessionOnDesktop(
+        device: PairedDevice,
+        sessionId: String,
+        clientName: String,
+    ) = withContext(Dispatchers.IO) {
+        val body = buildJsonObject {
+            put("id", sessionId)
+            put("client", clientName)
+        }.toString()
+        executeWithFailover(device) { baseUrl, client ->
+            val req = authorizedRequest("$baseUrl/v1/companion/open", device.token)
+                .post(body.toRequestBody(JSON_MEDIA))
+                .build()
+            client.newCall(req).execute().use { resp ->
+                val raw = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) throw mapHttpError(resp.code, raw)
+            }
+        }
+    }
+
     suspend fun sendToSession(
         device: PairedDevice,
         clientName: String,
         sessionId: String,
         text: String,
+        sendNow: Boolean = false,
     ): SendDeliveryResponse = withContext(Dispatchers.IO) {
         val body = buildJsonObject {
             put("kind", "session")
             put("client", clientName)
             put("sessionId", sessionId)
             put("text", text)
+            if (sendNow) put("sendNow", true)
         }.toString()
         executeWithFailover(device) { baseUrl, client ->
             val req = authorizedRequest("$baseUrl/v1/companion/send", device.token)
+                .post(body.toRequestBody(JSON_MEDIA))
+                .build()
+            client.newCall(req).execute().use { resp ->
+                val raw = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) throw mapHttpError(resp.code, raw)
+                json.decodeFromString<SendDeliveryResponse>(raw)
+            }
+        }.first
+    }
+
+    suspend fun sendNowToSession(
+        device: PairedDevice,
+        clientName: String,
+        sessionId: String,
+        text: String = "",
+    ): SendDeliveryResponse = withContext(Dispatchers.IO) {
+        val body = buildJsonObject {
+            put("client", clientName)
+            put("sessionId", sessionId)
+            if (text.isNotBlank()) put("text", text)
+        }.toString()
+        executeWithFailover(device) { baseUrl, client ->
+            val req = authorizedRequest("$baseUrl/v1/companion/send-now", device.token)
                 .post(body.toRequestBody(JSON_MEDIA))
                 .build()
             client.newCall(req).execute().use { resp ->
@@ -300,6 +345,29 @@ class LanClient {
         lastResponse
     }
 
+    suspend fun fetchFileChunk(
+        device: PairedDevice,
+        path: String,
+        offset: Long = 0L,
+        length: Int = 512 * 1024,
+    ): FileChunkResponse = withContext(Dispatchers.IO) {
+        val body = buildJsonObject {
+            put("path", path)
+            put("offset", offset)
+            put("length", length)
+        }.toString()
+        executeWithFailover(device) { baseUrl, client ->
+            val req = authorizedRequest("$baseUrl/v1/companion/file", device.token)
+                .post(body.toRequestBody(JSON_MEDIA))
+                .build()
+            client.newCall(req).execute().use { resp ->
+                val raw = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) throw mapHttpError(resp.code, raw)
+                json.decodeFromString<FileChunkResponse>(raw)
+            }
+        }.first
+    }
+
     private inline fun <T> executeWithFailover(
         device: PairedDevice,
         block: (baseUrl: String, client: OkHttpClient) -> T,
@@ -351,7 +419,7 @@ class LanClient {
 
     companion object {
         private const val HEADER_CLIENT_VERSION = "X-AgentHUD-Client-Version"
-        private const val CLIENT_VERSION = "0.6.11-android (2)"
+        private const val CLIENT_VERSION = "0.6.12-android (3)"
         private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
     }
 }

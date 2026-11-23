@@ -11,6 +11,7 @@ use std::{
 
 #[path = "phones/companion.rs"]
 mod companion;
+pub(crate) use companion::open_session_on_desktop;
 
 /// `directory` is None for the demo, which shares nothing.
 pub(crate) fn start(

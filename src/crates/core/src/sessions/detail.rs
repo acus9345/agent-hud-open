@@ -189,7 +189,7 @@ impl AgentHudCore {
             })
             .transpose()?
             .unwrap_or(100)
-            .min(200) as usize;
+            .min(2000) as usize;
         let paths = earlier
             .iter()
             .map(PathBuf::as_path)

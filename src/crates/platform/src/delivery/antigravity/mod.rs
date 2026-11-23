@@ -104,6 +104,15 @@ impl AntigravityTransport for NativeAntigravityTransport {
     }
 }
 
+/// Flushes any queued messages in `session_id` immediately ("Send now").
+pub fn send_queued_now(session_id: &str) -> Result<()> {
+    let cascade_id = super::antigravity_cascade_id(session_id);
+    if !valid_uuid(cascade_id) {
+        return Err(Failure::InvalidInput("Antigravity session identity".into()));
+    }
+    transport::send_all_queued(cascade_id)
+}
+
 /// Whether Antigravity's desktop or IDE app is installed in one of `applications`.
 pub fn desktop_installed(applications: &[PathBuf]) -> bool {
     applications.iter().any(|folder| {

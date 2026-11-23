@@ -34,3 +34,16 @@ pub(super) fn send(
     )?;
     Ok(note)
 }
+
+pub(super) fn send_all_queued(cascade_id: &str) -> Result<()> {
+    let (config, _) = resolve_cascade_config(Some(cascade_id), None);
+    let mut body = json!({
+        "metadata": super::metadata(),
+        "cascadeId": cascade_id,
+    });
+    if let Some(config) = config {
+        body["cascadeConfig"] = config;
+    }
+    call("SendAllQueuedMessages", body)?;
+    Ok(())
+}

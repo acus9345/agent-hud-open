@@ -163,14 +163,14 @@ mod tests {
 
     #[test]
     fn validates_remote_modes_and_urls() {
-        let ok = validate_remote("relay", "https://hud.qlinter.org/", "qonzer", 4499).unwrap();
-        assert_eq!(ok.relay_url, "https://hud.qlinter.org");
-        assert_eq!(ok.ssh_target, "qonzer");
+        let ok = validate_remote("relay", "https://hud.example.com/", "my-vps", 4499).unwrap();
+        assert_eq!(ok.relay_url, "https://hud.example.com");
+        assert_eq!(ok.ssh_target, "my-vps");
         assert!(validate_remote("bogus", "", "", 4499).is_err());
         assert!(validate_remote("relay", "http://insecure.example", "", 4499).is_err());
         assert!(validate_remote(
             "relay",
-            "https://hud.qlinter.org",
+            "https://hud.example.com",
             "-oProxyCommand=bad",
             4499
         )

@@ -12,6 +12,9 @@
 use super::*;
 use agent_hud_core::naming::surfaces::{Category, Surface, AGENT_HUD};
 
+#[path = "user_now.rs"]
+mod user_now;
+
 /// The clients the clipboard window sends to.
 pub const USER_CLIENTS: [&str; 6] = [
     "claude",
@@ -126,6 +129,17 @@ impl Messaging {
         host: &Host<'_>,
         now: i64,
     ) -> Result<Value> {
+        self.user_send_as(target, text, host, now, false)
+    }
+
+    pub(crate) fn user_send_as(
+        &mut self,
+        target: &UserTarget,
+        text: &str,
+        host: &Host<'_>,
+        now: i64,
+        steer: bool,
+    ) -> Result<Value> {
         self.preferences = Preferences::read(&host.snapshot["settings"]);
         let language = language(host.snapshot);
         if let Some(reason) = check_text(text, language) {
@@ -134,7 +148,7 @@ impl Messaging {
         let surface = Surface::new(Category::Desktop, AGENT_HUD);
         match target {
             UserTarget::Session { client, session_id } => {
-                self.user_into(client, session_id, text, &surface, host, now)
+                self.user_into(client, session_id, text, &surface, host, now, steer)
             }
             UserTarget::New { client, folder } => {
                 self.user_start(client, folder, text, &surface, host, now)
@@ -150,6 +164,7 @@ impl Messaging {
         surface: &Surface,
         host: &Host<'_>,
         now: i64,
+        steer: bool,
     ) -> Result<Value> {
         let language = language(host.snapshot);
         if !USER_CLIENTS.contains(&client) {
@@ -172,21 +187,14 @@ impl Messaging {
         ) {
             return Ok(refused(&reason));
         }
-        let receipt = self.clients.send(SendRequest {
-            provider: provider(client),
-            session_id: id.clone(),
-            request_id: message_id(),
-            text: text.to_owned(),
-            form: PromptForm::Own,
-            // Into the session's own queue: never into a turn in progress.
-            operation: Operation::Enqueue,
-            expected_turn_id: None,
-            model: None,
-        });
+        let receipt = self.send_own(client, &id, text, steer);
         Ok(match receipt {
             Ok(receipt) => {
                 self.clients.delivered(&receipt, surface, now);
-                let state = delivered(receipt.state);
+                let state = match receipt.state {
+                    DeliveryState::Steered => "steered",
+                    other => delivered(other),
+                };
                 if !matches!(state, "refused" | "expired") {
                     (self.fly)(person_flight(&party(host.snapshot, client, &id), false));
                 }

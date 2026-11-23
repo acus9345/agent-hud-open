@@ -1,25 +1,15 @@
 package org.agenthud.android.ui
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,7 +17,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,16 +31,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -71,7 +58,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -85,21 +71,18 @@ import org.agenthud.android.data.QuotaFormatting
 import org.agenthud.android.data.QuotaWindowReading
 import org.agenthud.android.data.UsageDayPoint
 import org.agenthud.android.ui.theme.HudColors
+import org.agenthud.android.ui.theme.HudType
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * iOS-inspired Home screen:
- * - Date + Device pill header
- * - Greeting + "+ New" pill button
- * - Natural-language status summary
- * - Circular provider quota rings strip
- * - Inline pending approvals
- * - Detailed grouped quota bars
- * - "This week" stacked bar card
+ * Home: a calm morning-briefing layout.
+ * Date + computer, greeting with a plain-language status line, the provider strip, pending
+ * approvals, this week's activity, then every quota window in one grouped list.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,19 +111,13 @@ fun QuotasScreen(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 104.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 10.dp, bottom = LocalDockInset.current),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            // Top bar: date + device switcher pill + refresh
             item(key = "home-top") {
-                HomeHeaderRow(
-                    state = state,
-                    onSelectDevice = onSelectDevice,
-                    onRefresh = onRefresh,
-                )
+                HomeHeaderRow(state = state, onSelectDevice = onSelectDevice, onRefresh = onRefresh)
             }
 
-            // Greeting + New pill button + natural-language summary
             item(key = "greeting") {
                 GreetingHero(
                     state = state,
@@ -150,61 +127,42 @@ fun QuotasScreen(
                 )
             }
 
-            // Connection error banner if offline/revoked
             if (!state.connectionError.isNullOrBlank() &&
                 (state.connectionState == ConnectionState.ERROR || state.connectionState == ConnectionState.UNAUTHORIZED)
             ) {
                 item(key = "conn-error") {
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = HudColors.TerracottaSoft,
-                        border = BorderStroke(1.dp, HudColors.Terracotta.copy(alpha = 0.6f)),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = if (state.connectionState == ConnectionState.UNAUTHORIZED) {
-                                    "Pairing revoked on desktop"
-                                } else {
-                                    "Computer unreachable"
-                                },
-                                style = MaterialTheme.typography.titleSmall,
-                                color = HudColors.TextPrimary,
+                    HudCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(14.dp)) {
+                        Row(verticalAlignment = Alignment.Top) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(top = 6.dp)
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(HudColors.Terracotta),
                             )
-                            Text(
-                                text = state.connectionError,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = HudColors.TextSecondary,
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Circular provider rings strip with real icons + spring ring sweep
-            if (providers.isNotEmpty()) {
-                item(key = "provider-rings") {
-                    RevealMotion(key = "rings", delayMs = 30) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            contentPadding = PaddingValues(horizontal = 2.dp),
-                        ) {
-                            items(
-                                items = providers,
-                                key = { "ring:${it.provider}:${it.accountKey ?: it.accountID ?: it.accountLabel}" },
-                            ) { provider ->
-                                ProviderRingItem(
-                                    provider = provider,
-                                    names = names,
-                                    showRemaining = showRemaining,
+                            Spacer(Modifier.width(10.dp))
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = if (state.connectionState == ConnectionState.UNAUTHORIZED) {
+                                        "Pairing revoked on desktop"
+                                    } else {
+                                        "Computer unreachable"
+                                    },
+                                    style = MaterialTheme.typography.titleSmall,
                                 )
+                                Text(text = state.connectionError, style = MaterialTheme.typography.bodySmall)
                             }
                         }
                     }
                 }
             }
 
-            // Pending approvals right on Home (matching iOS Home!)
+            if (providers.isNotEmpty()) {
+                item(key = "provider-strip") {
+                    ProviderStrip(providers = providers, names = names, showRemaining = showRemaining)
+                }
+            }
+
             if (approvals.isNotEmpty()) {
                 items(items = approvals.take(3), key = { "home-approval:${it.id}" }) { approval ->
                     ApprovalCard(
@@ -218,32 +176,20 @@ fun QuotasScreen(
                 }
             }
 
-            // "This week" stacked bar card with animated bar rise
             if (state.weekUsage.daily.isNotEmpty()) {
                 item(key = "this-week") {
-                    RevealMotion(key = "week", delayMs = 70) {
-                        ThisWeekCard(
-                            days = state.weekUsage.daily,
-                            totalTokens = state.weekUsage.totalTokens,
-                            costUsd = state.weekUsage.estimatedCostUsd,
-                        )
-                    }
+                    ThisWeekSection(
+                        days = state.weekUsage.daily,
+                        totalTokens = state.weekUsage.totalTokens,
+                        costUsd = state.weekUsage.estimatedCostUsd,
+                    )
                 }
             }
 
-            // Detailed quota windows grouped cleanly
             if (providers.isEmpty()) {
                 item(key = "empty-quotas") {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = HudColors.Surface,
-                        border = BorderStroke(1.dp, HudColors.Border),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(22.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
+                    HudCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(20.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 text = if (state.connectionState == ConnectionState.CONNECTING) {
                                     "Syncing with ${state.activeDevice?.deviceName ?: "computer"}…"
@@ -260,69 +206,37 @@ fun QuotasScreen(
                     }
                 }
             } else {
-                item(key = "quotas-section-header") {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("Quotas & balances", style = MaterialTheme.typography.titleMedium)
-                        if (state.lastSyncedAtMs > 0L) {
-                            Text(
-                                text = QuotaFormatting.formatRelativeMs(state.lastSyncedAtMs),
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        }
-                    }
+                item(key = "limits-header") {
+                    SectionHeader(
+                        title = "Limits",
+                        trailing = state.lastSyncedAtMs.takeIf { it > 0L }
+                            ?.let { "Updated ${QuotaFormatting.formatRelativeMs(it)}" },
+                    )
                 }
-                item(key = "quotas-grouped-card") {
-                    RevealMotion(key = "quotas-card", delayMs = 110) {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = HudColors.Surface,
-                            border = BorderStroke(1.dp, HudColors.Border),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                providers.forEachIndexed { idx, provider ->
-                                    if (idx > 0) {
-                                        HorizontalDivider(
-                                            color = HudColors.Border,
-                                            thickness = 1.dp,
-                                            modifier = Modifier.padding(vertical = 14.dp),
-                                        )
-                                    }
-                                    ProviderQuotaSection(
-                                        provider = provider,
-                                        names = names,
-                                        showRemaining = showRemaining,
-                                    )
-                                }
+                item(key = "limits-card") {
+                    HudCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+                        Column {
+                            providers.forEachIndexed { idx, provider ->
+                                if (idx > 0) HudDivider(Modifier.padding(start = 16.dp))
+                                ProviderQuotaSection(provider = provider, names = names, showRemaining = showRemaining)
                             }
                         }
                     }
                 }
             }
 
-            // Noticed today (events)
             val events = state.companionState?.events.orEmpty()
             if (events.isNotEmpty()) {
-                item(key = "noticed-header") {
-                    Text("Noticed today", style = MaterialTheme.typography.titleMedium)
-                }
+                item(key = "noticed-header") { SectionHeader(title = "Noticed today") }
                 item(key = "noticed-card") {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = HudColors.Surface,
-                        border = BorderStroke(1.dp, HudColors.Border),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    HudCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(0.dp)) {
+                        Column {
                             events.take(5).forEachIndexed { idx, ev ->
-                                if (idx > 0) HorizontalDivider(color = HudColors.Border, thickness = 1.dp)
+                                if (idx > 0) HudDivider(Modifier.padding(start = 16.dp))
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.Top,
                                 ) {
                                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -339,7 +253,7 @@ fun QuotasScreen(
                                             )
                                         }
                                     }
-                                    Spacer(Modifier.width(8.dp))
+                                    Spacer(Modifier.width(12.dp))
                                     Text(
                                         text = QuotaFormatting.formatRelativeTime(ev.at),
                                         style = MaterialTheme.typography.labelSmall,
@@ -362,90 +276,102 @@ private fun HomeHeaderRow(
 ) {
     var switcherOpen by remember { mutableStateOf(false) }
     val dateLabel = remember {
-        LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMM d", Locale.US))
+        LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, MMMM d", Locale.getDefault()))
     }
-    val active = state.activeDevice
-    val online = state.connectionState == ConnectionState.LIVE_SSE ||
-        state.connectionState == ConnectionState.POLLING
     val dotColor = when (state.connectionState) {
         ConnectionState.LIVE_SSE, ConnectionState.POLLING -> HudColors.SageBright
         ConnectionState.CONNECTING -> HudColors.TextMuted
         else -> HudColors.Terracotta
     }
+    val canSwitch = state.devices.size > 1
 
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
             text = dateLabel,
-            style = MaterialTheme.typography.labelMedium,
-            color = HudColors.TextMuted,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = HudColors.TextSecondary,
+            modifier = Modifier.weight(1f),
         )
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box {
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = HudColors.Surface,
-                    border = BorderStroke(1.dp, HudColors.Border),
-                    modifier = Modifier.clickable(enabled = state.devices.size > 1) { switcherOpen = true },
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        BreathingDot(
-                            color = dotColor,
-                            size = 6.dp,
-                            pulsing = state.connectionState == ConnectionState.LIVE_SSE,
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        Text(
-                            text = active?.deviceName ?: "Agent HUD",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = if (online) HudColors.TextPrimary else HudColors.TextSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                DropdownMenu(
-                    expanded = switcherOpen,
-                    onDismissRequest = { switcherOpen = false },
-                    containerColor = HudColors.SurfaceElevated,
-                ) {
-                    state.devices.forEach { device ->
-                        DropdownMenuItem(
-                            text = { Text(device.deviceName, color = HudColors.TextPrimary) },
-                            onClick = {
-                                switcherOpen = false
-                                onSelectDevice(device.deviceId)
-                            },
-                        )
-                    }
-                }
-            }
-
-            val spinTransition = rememberInfiniteTransition(label = "refreshSpin")
-            val spinAngle by spinTransition.animateFloat(
-                initialValue = 0f,
-                targetValue = 360f,
-                animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
-                label = "spinDeg",
-            )
-            IconButton(onClick = onRefresh, modifier = Modifier.size(32.dp)) {
-                Icon(
-                    imageVector = Icons.Outlined.Refresh,
-                    contentDescription = "Refresh",
-                    tint = if (state.isRefreshing) HudColors.SageBright else HudColors.TextMuted,
-                    modifier = Modifier
-                        .size(17.dp)
-                        .graphicsLayer { rotationZ = if (state.isRefreshing) spinAngle else 0f },
+        Box {
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(HudColors.SurfaceElevated)
+                    .bounceClick(scaleDown = 0.95f, enabled = canSwitch) { switcherOpen = true }
+                    .padding(start = 10.dp, end = if (canSwitch) 6.dp else 11.dp, top = 5.dp, bottom = 5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BreathingDot(
+                    color = dotColor,
+                    size = 6.dp,
+                    pulsing = state.connectionState == ConnectionState.LIVE_SSE,
                 )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    text = state.activeDevice?.deviceName ?: "Agent HUD",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = HudColors.TextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (canSwitch) {
+                    Icon(
+                        imageVector = Icons.Outlined.UnfoldMore,
+                        contentDescription = "Switch computer",
+                        tint = HudColors.TextMuted,
+                        modifier = Modifier
+                            .padding(start = 2.dp)
+                            .size(14.dp),
+                    )
+                }
             }
+            DropdownMenu(
+                expanded = switcherOpen,
+                onDismissRequest = { switcherOpen = false },
+                containerColor = HudColors.SurfaceElevated,
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                state.devices.forEach { device ->
+                    DropdownMenuItem(
+                        text = { Text(device.deviceName, color = HudColors.TextPrimary) },
+                        onClick = {
+                            switcherOpen = false
+                            onSelectDevice(device.deviceId)
+                        },
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.width(4.dp))
+        val spin = rememberInfiniteTransition(label = "refreshSpin")
+        val angle by spin.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(tween(900, easing = LinearEasing)),
+            label = "spinDeg",
+        )
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .bounceClick(scaleDown = 0.9f, onClick = onRefresh),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Refresh,
+                contentDescription = "Refresh",
+                tint = HudColors.TextSecondary,
+                modifier = Modifier
+                    .size(18.dp)
+                    .graphicsLayer { rotationZ = if (state.isRefreshing) angle else 0f },
+            )
         }
     }
 }
@@ -465,7 +391,6 @@ private fun GreetingHero(
         }
     }
 
-    // Build natural-language status lines matching iOS Home
     val lines = buildList {
         val approvals = state.pendingApprovals
         if (approvals.isNotEmpty()) {
@@ -477,7 +402,7 @@ private fun GreetingHero(
                 add("${approvals.size} requests are waiting for your approval.")
             }
         } else if (state.runningSessionCount > 0) {
-            add("${state.runningSessionCount} active session${if (state.runningSessionCount == 1) "" else "s"} running now.")
+            add("${state.runningSessionCount} session${if (state.runningSessionCount == 1) " is" else "s are"} running.")
         }
 
         val hottest = state.visibleProviders
@@ -495,55 +420,52 @@ private fun GreetingHero(
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = greeting,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineLarge,
+                modifier = Modifier.weight(1f),
             )
             if (canStartNew) {
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = HudColors.BlueAccent,
-                    modifier = Modifier.clickable(onClick = onOpenNewSession),
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(HudColors.BlueAccent)
+                        .bounceClick(scaleDown = 0.94f, onClick = onOpenNewSession)
+                        .padding(start = 10.dp, end = 14.dp, top = 7.dp, bottom = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Mic,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(14.dp),
-                        )
-                        Spacer(Modifier.width(5.dp))
-                        Text(
-                            text = "New",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White,
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Outlined.Add,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(text = "New", fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                 }
             }
         }
 
         if (lines.isNotEmpty()) {
             Column(
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                modifier = Modifier.clickable(enabled = state.pendingApprovals.isNotEmpty()) {
-                    onOpenSessionsTab()
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+                modifier = if (state.pendingApprovals.isNotEmpty()) {
+                    Modifier.bounceClick(scaleDown = 0.99f, onClick = onOpenSessionsTab)
+                } else {
+                    Modifier
                 },
             ) {
                 lines.forEach { line ->
                     Text(
                         text = line,
-                        style = MaterialTheme.typography.bodySmall,
+                        fontSize = 15.sp,
+                        lineHeight = 20.sp,
+                        fontWeight = FontWeight.Medium,
                         color = HudColors.TextSecondary,
                     )
                 }
@@ -552,254 +474,242 @@ private fun GreetingHero(
     }
 }
 
+/** Provider glance strip: mark, name, a small ring next to the figure, and when it resets. */
 @Composable
-private fun ProviderRingItem(
-    provider: ProviderReading,
+private fun ProviderStrip(
+    providers: List<ProviderReading>,
     names: Map<String, String>,
     showRemaining: Boolean,
 ) {
-    val displayName = QuotaFormatting.providerDisplayName(provider.provider, names)
-    val accent = HudColors.providerAccent(provider.provider)
-    val topQuota = provider.quotas.maxByOrNull { it.usedPercent }
-    val firstBalance = provider.balances.firstOrNull()
-
-    val isCritical = topQuota != null && QuotaFormatting.isCriticalLevel(topQuota)
-    val ringColor = when {
-        topQuota != null && isCritical -> HudColors.Terracotta
-        topQuota != null -> HudColors.SageBright
-        firstBalance != null -> accent
-        else -> HudColors.Track
-    }
-    val rawPct = when {
-        topQuota == null -> 100
-        showRemaining -> topQuota.remainingPercent.roundToInt().coerceIn(0, 100)
-        else -> topQuota.usedPercent.roundToInt().coerceIn(0, 100)
-    }
-    val targetFraction = (rawPct / 100f).coerceIn(0f, 1f)
-    val animatedSweep = remember(provider.provider, provider.accountKey) { Animatable(0f) }
-    LaunchedEffect(targetFraction) {
-        animatedSweep.animateTo(
-            targetValue = targetFraction,
-            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessLow),
-        )
-    }
-    val animatedPct by animateIntAsState(
-        targetValue = rawPct,
-        animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing),
-        label = "ringPct",
-    )
-
-    val headlineValue = when {
-        topQuota != null -> "$animatedPct%"
-        firstBalance != null -> {
-            val amt = firstBalance.amount.toDoubleOrNull()
-            if (amt != null) QuotaFormatting.formatMoney(amt, firstBalance.currency) else firstBalance.amount
-        }
-        else -> "—"
-    }
-    val subLabel = when {
-        topQuota != null -> QuotaFormatting.formatResetTime(topQuota.resetsAtMs)
-            .removePrefix("Resets ")
-            .ifBlank { topQuota.windowShortName.ifBlank { "Active" } }
-        firstBalance != null -> "Balance"
-        else -> ""
-    }
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(5.dp),
-        modifier = Modifier.width(86.dp),
-    ) {
-        Box(
-            modifier = Modifier.size(56.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val stroke = 3.5.dp.toPx()
-                val pad = stroke / 2f
-                val arcSize = Size(size.width - stroke, size.height - stroke)
-                drawArc(
-                    color = HudColors.Track,
-                    startAngle = -90f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    topLeft = Offset(pad, pad),
-                    size = arcSize,
-                    style = Stroke(width = stroke, cap = StrokeCap.Round),
-                )
-                drawArc(
-                    color = ringColor,
-                    startAngle = -90f,
-                    sweepAngle = 360f * animatedSweep.value,
-                    useCenter = false,
-                    topLeft = Offset(pad, pad),
-                    size = arcSize,
-                    style = Stroke(width = stroke, cap = StrokeCap.Round),
-                )
-            }
-            Surface(
-                shape = CircleShape,
-                color = HudColors.SurfaceElevated,
-                modifier = Modifier.size(40.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    ProviderIcon(providerId = provider.provider, size = 24.dp)
+    val key: (ProviderReading) -> String = { "ring:${it.provider}:${it.accountKey ?: it.accountID ?: it.accountLabel}" }
+    if (providers.size <= 4) {
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+            providers.forEach { p ->
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    ProviderGlance(provider = p, names = names, showRemaining = showRemaining)
                 }
             }
         }
-
-        Text(
-            text = displayName,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = HudColors.TextPrimary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = headlineValue,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (isCritical) HudColors.Terracotta else HudColors.SageBright,
-            maxLines = 1,
-        )
-        if (subLabel.isNotBlank()) {
-            Text(
-                text = subLabel,
-                fontSize = 10.sp,
-                color = HudColors.TextMuted,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+    } else {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(vertical = 6.dp),
+        ) {
+            items(items = providers, key = key) { p ->
+                Box(modifier = Modifier.width(86.dp), contentAlignment = Alignment.Center) {
+                    ProviderGlance(provider = p, names = names, showRemaining = showRemaining)
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun ThisWeekCard(
+private fun ProviderGlance(
+    provider: ProviderReading,
+    names: Map<String, String>,
+    showRemaining: Boolean,
+) {
+    val displayName = QuotaFormatting.providerDisplayName(provider.provider, names)
+    val topQuota = provider.quotas.maxByOrNull { it.usedPercent }
+    val firstBalance = provider.balances.firstOrNull()
+    val critical = topQuota != null && QuotaFormatting.isCriticalLevel(topQuota)
+    val accent = if (critical) HudColors.Terracotta else HudColors.SageBright
+
+    val rawPct = when {
+        topQuota == null -> 0
+        showRemaining -> topQuota.remainingPercent.roundToInt().coerceIn(0, 100)
+        else -> topQuota.usedPercent.roundToInt().coerceIn(0, 100)
+    }
+    val animatedPct by animateIntAsState(rawPct, HudMotion.fill(), label = "glancePct")
+    val sweep by animateFloatAsState(rawPct / 100f, HudMotion.fill(), label = "glanceSweep")
+
+    val sub = when {
+        topQuota != null -> QuotaFormatting.formatResetTime(topQuota.resetsAtMs).removePrefix("Resets ")
+            .ifBlank { topQuota.windowShortName }
+        firstBalance != null -> "Balance"
+        else -> ""
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        ProviderIcon(providerId = provider.provider, size = 30.dp)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = displayName,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = HudColors.TextPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(3.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (topQuota != null) {
+                Canvas(modifier = Modifier.size(12.dp)) {
+                    val stroke = 2.dp.toPx()
+                    val inset = stroke / 2f
+                    val arc = Size(size.width - stroke, size.height - stroke)
+                    drawArc(HudColors.Track, -90f, 360f, false, Offset(inset, inset), arc, style = Stroke(stroke))
+                    drawArc(
+                        accent, -90f, 360f * sweep, false, Offset(inset, inset), arc,
+                        style = Stroke(stroke, cap = StrokeCap.Round),
+                    )
+                }
+                Spacer(Modifier.width(5.dp))
+                Text(text = "$animatedPct%", style = HudType.numeric(15.sp, FontWeight.SemiBold, accent))
+            } else if (firstBalance != null) {
+                val amt = firstBalance.amount.toDoubleOrNull()
+                Text(
+                    text = if (amt != null) QuotaFormatting.formatMoney(amt, firstBalance.currency) else firstBalance.amount,
+                    style = HudType.numeric(15.sp, FontWeight.SemiBold),
+                )
+            } else {
+                Text("—", style = HudType.numeric(15.sp, color = HudColors.TextMuted))
+            }
+        }
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = sub.ifBlank { " " },
+            fontSize = 10.5.sp,
+            color = HudColors.TextMuted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun ThisWeekSection(
     days: List<UsageDayPoint>,
     totalTokens: Long,
     costUsd: Double,
 ) {
     val last7 = days.takeLast(7)
     val maxDay = (last7.maxOfOrNull { it.totalTokens } ?: 0L).coerceAtLeast(1L)
+    var selectedIdx by remember(last7.size) { mutableStateOf<Int?>(null) }
     val barGrowth = remember { Animatable(0f) }
     LaunchedEffect(totalTokens, last7.size) {
-        barGrowth.animateTo(1f, animationSpec = tween(durationMillis = 560, easing = FastOutSlowInEasing))
+        barGrowth.animateTo(1f, HudMotion.fill())
     }
     val topModels = remember(last7) {
         val sums = HashMap<String, Long>()
         last7.forEach { d -> d.byModel.forEach { (m, v) -> sums[m] = (sums[m] ?: 0L) + v } }
         sums.entries.sortedByDescending { it.value }.map { it.key }.take(5)
     }
+    val selectedDay = selectedIdx?.let { last7.getOrNull(it) }
+    val trailing = if (selectedDay != null) {
+        val label = runCatching { LocalDate.parse(selectedDay.day) }.getOrNull()
+            ?.format(DateTimeFormatter.ofPattern("EEE d", Locale.getDefault())) ?: selectedDay.day
+        "$label · ${QuotaFormatting.formatTokens(selectedDay.totalTokens)}"
+    } else {
+        buildString {
+            append(QuotaFormatting.formatTokens(totalTokens))
+            append(" tokens")
+            if (costUsd > 0.0) append(" · ≈${QuotaFormatting.formatMoney(costUsd)}")
+        }
+    }
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = HudColors.Surface,
-        border = BorderStroke(1.dp, HudColors.Border),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("This week", style = MaterialTheme.typography.titleMedium)
-                val right = buildString {
-                    append(QuotaFormatting.formatTokens(totalTokens))
-                    if (costUsd > 0.0) append(" · ≈${QuotaFormatting.formatMoney(costUsd)}")
-                }
-                Text(right, style = MaterialTheme.typography.labelSmall, color = HudColors.TextSecondary)
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom,
-            ) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionHeader(title = "This week", trailing = trailing)
+        HudCard(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 10.dp, vertical = 14.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
                 last7.forEachIndexed { idx, point ->
                     val parsed = runCatching { LocalDate.parse(point.day) }.getOrNull()
-                    val dow = parsed?.dayOfWeek?.name?.take(1) ?: ""
+                    val dow = parsed?.dayOfWeek?.getDisplayName(TextStyle.NARROW, Locale.getDefault()) ?: ""
                     val dom = parsed?.dayOfMonth?.toString() ?: ""
                     val isToday = idx == last7.lastIndex
+                    val isSelected = selectedIdx == idx
+                    val dimmed = selectedIdx != null && !isSelected
+                    val barAlpha by animateFloatAsState(if (dimmed) 0.35f else 1f, HudMotion.tint(), label = "dayDim")
 
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(7.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .bounceClick(scaleDown = 0.94f) { selectedIdx = if (isSelected) null else idx },
                     ) {
-                        Text(dow, fontSize = 10.sp, color = HudColors.TextMuted)
+                        Text(
+                            text = dow,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isSelected || isToday) HudColors.TextPrimary else HudColors.TextMuted,
+                        )
                         Canvas(
                             modifier = Modifier
-                                .width(14.dp)
-                                .height(54.dp),
+                                .width(16.dp)
+                                .height(64.dp)
+                                .graphicsLayer { alpha = barAlpha },
                         ) {
                             val radius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
-                            drawRoundRect(
-                                color = HudColors.Track,
-                                topLeft = Offset.Zero,
-                                size = size,
-                                cornerRadius = radius,
-                            )
-                            val totalH = (size.height * (point.totalTokens.toFloat() / maxDay.toFloat()) * barGrowth.value)
+                            drawRoundRect(color = HudColors.Track, size = size, cornerRadius = radius)
+                            val totalH = (size.height * (point.totalTokens.toFloat() / maxDay) * barGrowth.value)
                                 .coerceIn(0f, size.height)
-                            if (totalH > 0f) {
-                                if (point.byModel.isEmpty() || topModels.isEmpty()) {
-                                    drawRoundRect(
-                                        color = HudColors.SageBright,
-                                        topLeft = Offset(0f, size.height - totalH),
-                                        size = Size(size.width, totalH),
-                                        cornerRadius = radius,
-                                    )
-                                } else {
-                                    var y = size.height
-                                    topModels.forEachIndexed { mIdx, model ->
-                                        val v = point.byModel[model] ?: 0L
-                                        if (v > 0L) {
-                                            val segH = (totalH * (v.toFloat() / point.totalTokens.coerceAtLeast(1L).toFloat()))
-                                            y -= segH
-                                            drawRoundRect(
-                                                color = HudColors.modelColor(mIdx),
-                                                topLeft = Offset(0f, y.coerceAtLeast(0f)),
-                                                size = Size(size.width, segH.coerceAtLeast(2f)),
-                                                cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx()),
-                                            )
-                                        }
+                            if (totalH <= 0f) return@Canvas
+                            if (point.byModel.isEmpty() || topModels.isEmpty()) {
+                                drawRoundRect(
+                                    color = HudColors.SageBright,
+                                    topLeft = Offset(0f, size.height - totalH),
+                                    size = Size(size.width, totalH),
+                                    cornerRadius = radius,
+                                )
+                            } else {
+                                val gap = 1.dp.toPx()
+                                var y = size.height
+                                val denom = point.totalTokens.coerceAtLeast(1L).toFloat()
+                                topModels.forEachIndexed { mIdx, model ->
+                                    val v = point.byModel[model] ?: 0L
+                                    if (v > 0L) {
+                                        val segH = totalH * (v / denom)
+                                        y -= segH
+                                        drawRoundRect(
+                                            color = HudColors.modelColor(mIdx),
+                                            topLeft = Offset(0f, y.coerceAtLeast(0f)),
+                                            size = Size(size.width, (segH - gap).coerceAtLeast(1.5f)),
+                                            cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx()),
+                                        )
                                     }
                                 }
                             }
                         }
-
-                        if (isToday) {
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clip(CircleShape)
-                                    .background(HudColors.TextPrimary),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = dom,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = HudColors.Background,
-                                )
-                            }
-                        } else {
-                            Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-                                Text(dom, fontSize = 10.sp, color = HudColors.TextMuted)
-                            }
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    when {
+                                        isSelected -> HudColors.BlueAccent
+                                        isToday -> HudColors.TextPrimary
+                                        else -> Color.Transparent
+                                    },
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = dom,
+                                style = HudType.numeric(
+                                    11.sp,
+                                    if (isToday || isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    when {
+                                        isSelected -> Color.White
+                                        isToday -> Color.Black
+                                        else -> HudColors.TextSecondary
+                                    },
+                                ),
+                            )
                         }
                     }
                 }
             }
         }
     }
+}
+
+/** Splits "Gemini Models · Weekly limit" into a group ("Gemini Models") and a window name. */
+private fun splitWindowLabel(label: String): Pair<String?, String> {
+    val idx = label.indexOf(" · ")
+    if (idx <= 0) return null to label
+    return label.substring(0, idx).trim() to label.substring(idx + 3).trim()
 }
 
 @Composable
@@ -810,16 +720,21 @@ private fun ProviderQuotaSection(
 ) {
     val displayName = QuotaFormatting.providerDisplayName(provider.provider, names)
 
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ProviderIcon(providerId = provider.provider, size = 20.dp)
-            Spacer(Modifier.width(9.dp))
+    Column(
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            ProviderIcon(providerId = provider.provider, size = 22.dp)
+            Spacer(Modifier.width(10.dp))
             Text(
                 text = displayName,
-                style = MaterialTheme.typography.titleMedium,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (-0.2).sp,
+                color = HudColors.TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
             val meta = listOfNotNull(
@@ -827,122 +742,130 @@ private fun ProviderQuotaSection(
                 provider.accountLabel.takeIf { it.isNotBlank() && !it.equals(displayName, ignoreCase = true) },
             ).firstOrNull()
             if (meta != null) {
+                Spacer(Modifier.width(10.dp))
                 Text(
                     text = meta,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = HudColors.TextMuted,
+                    fontSize = 12.5.sp,
+                    color = HudColors.TextSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
         }
 
+        var lastGroup: String? = null
         provider.quotas.forEach { window ->
-            CompactQuotaBarRow(window, showRemaining = showRemaining)
+            val (group, name) = splitWindowLabel(
+                QuotaFormatting.cleanWindowLabel(window.windowName, window.windowShortName),
+            )
+            if (group != null && group != lastGroup) {
+                Text(
+                    text = group,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = HudColors.TextMuted,
+                    modifier = Modifier.padding(top = if (lastGroup != null) 4.dp else 0.dp),
+                )
+            }
+            lastGroup = group
+            QuotaWindowRow(window = window, name = name, showRemaining = showRemaining)
         }
 
         if (provider.balances.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("API balance", style = MaterialTheme.typography.bodySmall, color = HudColors.TextMuted)
-                val first = provider.balances.first()
-                val amt = first.amount.toDoubleOrNull()
-                val text = if (amt != null) QuotaFormatting.formatMoney(amt, first.currency) else first.amount
-                val low = first.level == "critical" || (amt != null && amt <= 0.0)
+            val first = provider.balances.first()
+            val amt = first.amount.toDoubleOrNull()
+            val low = first.level == "critical" || (amt != null && amt <= 0.0)
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = text,
-                    fontFamily = FontFamily.Monospace,
+                    text = "API balance",
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (low) HudColors.Terracotta else HudColors.TextPrimary,
+                    color = HudColors.TextPrimary,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = if (amt != null) QuotaFormatting.formatMoney(amt, first.currency) else first.amount,
+                    style = HudType.Value.copy(color = if (low) HudColors.Terracotta else HudColors.TextPrimary),
                 )
             }
         }
 
         provider.resetCredits?.let { rc ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text("Usage resets", style = MaterialTheme.typography.bodySmall, color = HudColors.TextMuted)
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "${rc.availableCount} available",
-                    style = MaterialTheme.typography.titleSmall,
+                    text = "Usage resets",
+                    fontSize = 14.sp,
+                    color = HudColors.TextPrimary,
+                    modifier = Modifier.weight(1f),
                 )
+                Text(text = "${rc.availableCount} available", style = HudType.Caption)
             }
         }
     }
 }
 
+/**
+ * One quota window. The name gets the full width (wrapping to a second line rather than
+ * truncating); the figure is pinned right; reset time and outlook sit quietly beneath the bar.
+ */
 @Composable
-private fun CompactQuotaBarRow(
+private fun QuotaWindowRow(
     window: QuotaWindowReading,
+    name: String,
     showRemaining: Boolean,
 ) {
-    val label = QuotaFormatting.cleanWindowLabel(window.windowName, window.windowShortName)
     val reset = QuotaFormatting.formatResetTime(window.resetsAtMs)
+    val outlook = QuotaFormatting.formatOutlook(window)
     val displayPct = if (showRemaining) {
         window.remainingPercent.roundToInt().coerceIn(0, 100)
     } else {
         window.usedPercent.roundToInt().coerceIn(0, 100)
     }
-    val animatedPct by animateIntAsState(
-        targetValue = displayPct,
-        animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing),
-        label = "barPct",
-    )
-    val animatedFill by animateFloatAsState(
-        targetValue = (displayPct / 100f).coerceIn(0f, 1f),
-        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
-        label = "barFill",
-    )
+    val animatedPct by animateIntAsState(displayPct, HudMotion.fill(), label = "windowPct")
     val critical = QuotaFormatting.isCriticalLevel(window)
-    val barColor = if (critical) HudColors.Terracotta else HudColors.Sage
-    val pctColor = if (critical) HudColors.Terracotta else HudColors.TextPrimary
+    val barColor = if (critical) HudColors.Terracotta else HudColors.SageBright
 
-    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
             Text(
-                text = label,
-                fontSize = 13.sp,
+                text = name,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
                 color = HudColors.TextPrimary,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            if (reset.isNotEmpty()) {
-                Spacer(Modifier.width(8.dp))
-                Text(reset, fontSize = 11.sp, color = HudColors.TextMuted, maxLines = 1)
-            }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
             Text(
                 text = "$animatedPct%",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = pctColor,
+                style = HudType.Value.copy(color = if (critical) HudColors.Terracotta else HudColors.TextPrimary),
             )
         }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(HudColors.Track),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(animatedFill)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(barColor),
-            )
+        HudProgressBar(progress = displayPct / 100f, color = barColor)
+        if (reset.isNotEmpty() || outlook != null) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = reset,
+                    style = HudType.Caption.copy(color = HudColors.TextMuted),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (outlook != null) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = outlook,
+                        style = HudType.Caption.copy(
+                            color = if (window.outlook == "exhausted" || window.outlook == "exhausts") {
+                                HudColors.Terracotta
+                            } else {
+                                HudColors.TextMuted
+                            },
+                        ),
+                        maxLines = 1,
+                    )
+                }
+            }
         }
     }
 }
